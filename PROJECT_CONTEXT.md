@@ -110,6 +110,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Added `docs/architecture/diagrams/pdf/12-shipment-and-receiving-sequence.pdf` as the PDF export for the shipment and receiving sequence diagram.
 - Added `docs/architecture/diagrams/pdf/13-sale-entry-sequence.pdf` as the PDF export for the sale entry sequence diagram.
 - Added `docs/architecture/diagrams/pdf/14-class-diagram.pdf` as the PDF export for the class diagram.
+- Added `docs/architecture/diagrams/pdf/15-main-er-diagram.pdf` as the PDF export for the main ER/database design diagram.
 
 ## Next Recommended Step
 
