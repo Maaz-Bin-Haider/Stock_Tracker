@@ -23,6 +23,7 @@ Stock_Tracker/
 ├── docs/
 │   ├── architecture/
 │   │   └── SYSTEM_DIAGRAMS.md
+│   │   └── diagrams/pdf/
 │   ├── business-flow/
 │   │   └── EXECUTION_FLOW_NON_TECHNICAL.md
 │   └── requirements/
@@ -42,6 +43,7 @@ Stock_Tracker/
 - `docs/requirements/SRS.md`: formal Software Requirements Specification.
 - `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md`: non-technical execution flow from new system setup to daily/monthly use.
 - `docs/architecture/SYSTEM_DIAGRAMS.md`: use case, activity, sequence, class, and ER diagrams.
+- `docs/architecture/diagrams/pdf/`: PDF exports of individual diagrams rendered from the Mermaid diagram source.
 
 ## Current Requirements Summary
 
@@ -94,6 +96,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Moved non-technical execution flow under `docs/business-flow/`.
 - Created `docs/architecture/SYSTEM_DIAGRAMS.md` with detailed use case, activity, sequence, class, and ER diagrams.
 - Updated README, SRS, system specification, and execution flow to reference the architecture diagrams.
+- Added `docs/architecture/diagrams/pdf/01-main-use-cases.pdf` as the PDF export for the main use case diagram.
 
 ## Next Recommended Step
 

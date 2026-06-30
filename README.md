@@ -30,6 +30,10 @@ This repository contains the planning documents, original workbook reference, an
 - [Non-Technical Execution Flow](docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
 - [System Diagrams](docs/architecture/SYSTEM_DIAGRAMS.md)
 
+Diagram PDF exports are stored in:
+
+- `docs/architecture/diagrams/pdf/`
+
 ## Source Workbook
 
 The original workbook reference is stored at:
