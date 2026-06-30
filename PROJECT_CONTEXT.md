@@ -105,6 +105,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Added `docs/architecture/diagrams/pdf/07-shipment-receiving-activity.pdf` as the PDF export for the shipment receiving activity diagram.
 - Added `docs/architecture/diagrams/pdf/08-sales-activity.pdf` as the PDF export for the sales activity diagram.
 - Added `docs/architecture/diagrams/pdf/09-report-export-activity.pdf` as the PDF export for the report export activity diagram.
+- Added `docs/architecture/diagrams/pdf/10-purchase-invoice-creation-sequence.pdf` as the PDF export for the purchase invoice creation sequence diagram.
 
 ## Next Recommended Step
 
