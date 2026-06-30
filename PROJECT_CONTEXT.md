@@ -108,6 +108,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Added `docs/architecture/diagrams/pdf/10-purchase-invoice-creation-sequence.pdf` as the PDF export for the purchase invoice creation sequence diagram.
 - Added `docs/architecture/diagrams/pdf/11-purchase-refund-cancellation-sequence.pdf` as the PDF export for the purchase refund/cancellation sequence diagram.
 - Added `docs/architecture/diagrams/pdf/12-shipment-and-receiving-sequence.pdf` as the PDF export for the shipment and receiving sequence diagram.
+- Added `docs/architecture/diagrams/pdf/13-sale-entry-sequence.pdf` as the PDF export for the sale entry sequence diagram.
 
 ## Next Recommended Step
 
