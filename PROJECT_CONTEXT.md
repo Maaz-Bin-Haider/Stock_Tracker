@@ -98,6 +98,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Updated README, SRS, system specification, and execution flow to reference the architecture diagrams.
 - Added `docs/architecture/diagrams/pdf/01-main-use-cases.pdf` as the PDF export for the main use case diagram.
 - Added `docs/architecture/diagrams/pdf/02-new-system-setup-activity.pdf` as the PDF export for the new system setup activity diagram.
+- Added `docs/architecture/diagrams/pdf/03-purchase-entry-activity.pdf` as the PDF export for the purchase entry activity diagram.
 
 ## Next Recommended Step
 
