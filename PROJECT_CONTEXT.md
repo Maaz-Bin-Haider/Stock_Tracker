@@ -97,6 +97,7 @@ If a change affects requirements, workflows, permissions, entities, database des
 - Created `docs/architecture/SYSTEM_DIAGRAMS.md` with detailed use case, activity, sequence, class, and ER diagrams.
 - Updated README, SRS, system specification, and execution flow to reference the architecture diagrams.
 - Added `docs/architecture/diagrams/pdf/01-main-use-cases.pdf` as the PDF export for the main use case diagram.
+- Added `docs/architecture/diagrams/pdf/02-new-system-setup-activity.pdf` as the PDF export for the new system setup activity diagram.
 
 ## Next Recommended Step
 
