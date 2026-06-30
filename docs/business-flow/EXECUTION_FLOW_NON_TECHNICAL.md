@@ -2,6 +2,8 @@
 
 This document explains how the inventory system will be used by business users from the beginning. It is written for non-technical users and focuses on the practical daily flow, not programming or database details.
 
+The visual diagrams for these workflows are maintained in `docs/architecture/SYSTEM_DIAGRAMS.md`. That diagrams document contains activity diagrams for the same major flows explained here.
+
 ## 1. Starting With a New System
 
 When the new system is first opened, the business will begin with a clean setup.
@@ -555,4 +557,3 @@ After local testing and business confirmation, it can be deployed to AWS.
 The first AWS deployment can run on a single EC2 instance.
 
 Backup details are deferred, but automatic backup is desired for the future.
-

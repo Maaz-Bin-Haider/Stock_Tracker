@@ -29,6 +29,20 @@ Profit distribution and detailed profit calculation are not required in this sys
 - Locations, categories, currencies, GST rates, and exchange rates must be configurable.
 - The app is single-company for now, but the database design should allow future multi-company support.
 
+## 2.1 Architecture Diagram Reference
+
+Detailed system diagrams are maintained in `docs/architecture/SYSTEM_DIAGRAMS.md`.
+
+That document includes:
+
+- use case diagram for actors and system actions
+- activity diagrams for main business workflows
+- sequence diagrams for important system interactions
+- class diagram for major business objects
+- ER diagram for proposed database design
+
+The diagrams should be updated when workflows, permissions, major entities, or database relationships change.
+
 ## 3. Main Navigation
 
 Required main menu pages:

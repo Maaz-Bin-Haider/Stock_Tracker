@@ -44,6 +44,17 @@ The system will not include profit distribution or full accounting features in t
 | Reversal Entry | Ledger entry that reverses stock/GST/value impact without deleting original history |
 | Audit Activity | Record of user actions such as create, update, delete, login, and settings changes |
 
+### 1.5 Related Documents
+
+The following documents support this SRS:
+
+- `docs/requirements/PROJECT_CONTEXT.md` contains the full requirements gathering log.
+- `docs/requirements/SYSTEM_SPEC.md` converts requirements into an implementation-oriented system specification.
+- `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` explains the end-to-end business flow for non-technical users.
+- `docs/architecture/SYSTEM_DIAGRAMS.md` contains the use case diagram, activity diagrams, sequence diagrams, class diagram, and ER/database diagram.
+
+The diagrams document should be used together with this SRS during development and QA review.
+
 ## 2. Overall Description
 
 ### 2.1 Product Perspective
@@ -1046,4 +1057,3 @@ The system will be considered acceptable when:
 - uploaded invoice files can be stored and downloaded
 - negative stock and over-receiving warnings work correctly
 - stock can be recalculated from the ledger after edits
-
