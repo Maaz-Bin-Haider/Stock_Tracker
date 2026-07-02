@@ -667,7 +667,8 @@ classDiagram
         +module
         +recordId
         +fileName
-        +filePath
+        +filePathOrKey
+        +storageBackend
         +fileType
         +uploadedBy
     }
@@ -1012,7 +1013,8 @@ erDiagram
         string module
         bigint record_id
         string file_name
-        string file_path
+        string file_path_or_key
+        string storage_backend "local_media or s3_compatible"
         string file_type
         bigint uploaded_by FK
         datetime uploaded_at
@@ -1127,4 +1129,3 @@ This combined document is useful for review. If the project grows, these diagram
 - `docs/architecture/sequence-diagrams.md`
 - `docs/architecture/class-diagram.md`
 - `docs/architecture/er-diagram.md`
-

@@ -51,6 +51,8 @@ Stock_Tracker/
 - Single company for now, future multi-company design possible.
 - Desktop/web first, responsive for mobile.
 - AWS deployment later after local testing, initially possible on one EC2 instance.
+- Recommended implementation stack: Django backend, Django REST Framework API, PostgreSQL database, Next.js/TypeScript frontend, Tailwind CSS with shadcn/ui or Radix UI, Celery with Redis for background jobs, local Django media storage during development, and S3-compatible object storage during deployment.
+- Development file uploads should use the local Django media folder; deployment should move uploaded/generated files to S3-compatible object storage.
 - Stock ledger is the source of truth.
 - Purchases can contain multiple product lines.
 - Purchase collection is separate from purchase entry.
@@ -73,7 +75,7 @@ Stock_Tracker/
 - Confirm who can create, update, and delete shipments. Current safe default is admin-only.
 - Backup schedule, retention, and restore process are deferred.
 - Final report columns can be refined after business review.
-- Final AWS architecture will be decided after local testing.
+- Final AWS architecture will be decided after local testing, with S3-compatible storage expected for uploaded invoices and generated reports.
 
 ## Documentation Maintenance Rule
 
@@ -87,6 +89,12 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-02
+
+- Confirmed file storage direction: use Django local media storage during development and move uploads/generated reports to S3-compatible object storage during deployment.
+- Documented the recommended full tech stack: Django, Django REST Framework, PostgreSQL, Next.js/TypeScript, Tailwind CSS with shadcn/ui or Radix UI, Celery, Redis, local Django media storage, and S3-compatible deployment storage.
+- Updated root and detailed requirement documents with the development/deployment storage decision.
 
 ### 2026-06-30
 
@@ -114,4 +122,4 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-Review and confirm shipment permissions, then proceed to implementation planning and technology stack selection.
+Review and confirm shipment permissions, then proceed to implementation planning with Django local media storage for development.

@@ -849,9 +849,13 @@ Supported uploads:
 Files should be:
 
 - stored inside the system
+- stored in the local Django media folder during development
+- moved to S3-compatible object storage during deployment
 - linked to the source record
 - downloadable from reports where relevant
 - included in audit trail for upload activity
+
+Development file storage should use Django `MEDIA_ROOT`, for example `media/uploads/`. The database should store file metadata and paths/keys, not the binary file contents, so storage can move from local media files to S3-compatible object storage later without redesigning the business records.
 
 ## 22. Data Entry and Migration
 
@@ -872,11 +876,26 @@ Files should be:
 - Manual product selection is enough.
 - Barcode/QR code support is not required.
 
+### Recommended Tech Stack
+
+- Backend: Django.
+- API: Django REST Framework.
+- Database: PostgreSQL.
+- Frontend: Next.js with TypeScript.
+- UI: Tailwind CSS with shadcn/ui or Radix UI components.
+- Background jobs: Celery for report exports, scheduled tasks, and heavier recalculation jobs.
+- Queue/cache: Redis.
+- Development file storage: local Django media folder.
+- Deployment file storage: S3-compatible object storage.
+- Local environment: Docker Compose.
+
 ### Deployment
 
 - Local testing comes first.
 - AWS deployment comes after local confirmation.
 - Initial AWS deployment can run on a single EC2 instance.
+- Development file storage should use the local Django media folder.
+- Deployment file storage should use S3-compatible object storage for uploaded invoices and generated reports.
 - Deployment should include app server, database, file storage, users, and backup setup as needed.
 
 ### Backup

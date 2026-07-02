@@ -753,7 +753,9 @@ The system shall support upload of images and PDF files for purchases and sales.
 
 #### FR-105 File Storage
 
-Files shall be stored inside the system.
+Files shall be stored inside the system. During development, files shall use the local Django media folder. During deployment, uploaded files and generated reports shall use S3-compatible object storage.
+
+The database shall store file metadata and local path or object-storage key references, not binary file contents.
 
 #### FR-106 File Download
 
@@ -1003,6 +1005,8 @@ The system shall provide a modern web interface with main navigation, forms, sea
 
 The system shall allow upload and download of invoice images and PDF files.
 
+Development file handling shall use Django `MEDIA_ROOT`, such as `media/uploads/`. Deployment file handling shall move to S3-compatible object storage without changing the user-facing upload/download workflow.
+
 ### 9.3 Export Interface
 
 The system shall export reports to Excel and PDF.
@@ -1012,6 +1016,23 @@ The system shall export reports to Excel and PDF.
 The system shall be deployable on AWS after local testing.
 
 Initial deployment may use one EC2 instance.
+
+Uploaded invoices and generated reports should use local Django media storage during development and S3-compatible object storage during deployment.
+
+### 9.5 Recommended Technical Stack
+
+The recommended stack for implementation is:
+
+- Backend: Django.
+- API: Django REST Framework.
+- Database: PostgreSQL.
+- Frontend: Next.js with TypeScript.
+- UI: Tailwind CSS with shadcn/ui or Radix UI components.
+- Background jobs: Celery.
+- Queue/cache: Redis.
+- Development file storage: local Django media folder.
+- Deployment file storage: S3-compatible object storage.
+- Local environment: Docker Compose.
 
 ## 10. Out of Scope
 

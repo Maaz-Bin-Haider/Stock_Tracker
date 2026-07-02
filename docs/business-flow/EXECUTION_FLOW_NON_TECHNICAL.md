@@ -447,6 +447,8 @@ Supported examples:
 
 Files are stored inside the system and linked to the related record.
 
+During development, the system stores uploaded files in the local Django media folder. During deployment, these files will move to S3-compatible cloud storage, while users continue uploading and downloading files through the same screens.
+
 Where relevant, files should be downloadable from reports.
 
 ## 20. Audit Activity Flow
@@ -555,5 +557,7 @@ The system will first be tested locally.
 After local testing and business confirmation, it can be deployed to AWS.
 
 The first AWS deployment can run on a single EC2 instance.
+
+During development, invoice files and generated reports can be stored in the local Django media folder. During deployment, uploaded files and generated reports should be moved to S3-compatible storage.
 
 Backup details are deferred, but automatic backup is desired for the future.

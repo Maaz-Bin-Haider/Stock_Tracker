@@ -509,6 +509,8 @@ Invoice and document uploads:
 
 - Purchase entry should allow optional upload of invoice screenshots/images or PDF files.
 - Sale entry should allow optional upload of invoice screenshots/images or PDF files.
+- During development, uploaded files should be stored in the local Django media folder.
+- During deployment, uploaded files and generated reports should move to S3-compatible object storage.
 
 ### Batch 7 Requirements - Navigation, Permissions, Settings, and System Behavior
 
@@ -597,6 +599,8 @@ Files and exports:
 
 - Invoice/file uploads should be stored inside the system.
 - Invoice/file uploads should also be downloadable from reports where relevant.
+- Development storage should use Django `MEDIA_ROOT`, such as `media/uploads/`.
+- Deployment storage should use S3-compatible object storage for uploaded invoices and generated reports.
 
 Future features and operations:
 
@@ -664,7 +668,20 @@ Deployment and infrastructure:
 - After local testing and confirmation, deployment will be handled later.
 - Target deployment is AWS.
 - Initial AWS deployment can run all required services on a single EC2 instance.
-- The deployment phase should include web app, database, file storage, users, and backup setup as needed.
+- The deployment phase should include web app, database, S3-compatible file storage, users, and backup setup as needed.
+
+Recommended implementation stack:
+
+- Backend: Django.
+- API: Django REST Framework.
+- Database: PostgreSQL.
+- Frontend: Next.js with TypeScript.
+- UI: Tailwind CSS with shadcn/ui or Radix UI components.
+- Background jobs: Celery.
+- Queue/cache: Redis.
+- Development file storage: local Django media folder.
+- Deployment file storage: S3-compatible object storage.
+- Local environment: Docker Compose for Django, PostgreSQL, Redis, Celery, and the frontend.
 
 Reports:
 
