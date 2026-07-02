@@ -97,6 +97,8 @@ flowchart LR
     PurchaseUser --> Purchases
     PurchaseUser --> Collection
     PurchaseUser --> Refunds
+    PurchaseUser --> Shipments
+    PurchaseUser --> ReceiveShipments
     PurchaseUser --> Ledger
     PurchaseUser --> Reports
     PurchaseUser --> ExportReports
@@ -383,7 +385,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    actor User as Admin/Shipment User
+    actor User as Purchase User/Admin
     participant UI as Web App UI
     participant ShipmentService as Shipment Service
     participant StockService as Stock Service

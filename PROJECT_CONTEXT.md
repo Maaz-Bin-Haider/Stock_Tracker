@@ -66,13 +66,12 @@ Stock_Tracker/
 ## Roles
 
 - Admin: full access.
-- Purchase user: purchases, purchase collection, purchase refunds/cancellations, and product creation during purchase flow.
+- Purchase user: purchases, purchase collection, purchase refunds/cancellations, shipments (including receiving), and product creation during purchase flow.
 - Sale user: sales only for create/update/delete, with view access to system data.
 - Viewer: read-only.
 
 ## Open Items
 
-- Confirm who can create, update, and delete shipments. Current safe default is admin-only.
 - Backup schedule, retention, and restore process are deferred.
 - Final report columns can be refined after business review.
 - Final AWS architecture will be decided after local testing, with S3-compatible storage expected for uploaded invoices and generated reports.
@@ -92,6 +91,10 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ### 2026-07-02
 
+- Resolved the shipment permission open item: admin and purchase users can create, update, and delete shipments and record shipment receiving; sale users and viewers are view-only. No separate shipment/operator role is added.
+- Updated for the shipment permission decision: `docs/requirements/SYSTEM_SPEC.md` (permission matrix, section 6 note, section 26), `docs/requirements/SRS.md` (user classes, FR-007, open items), `docs/requirements/PROJECT_CONTEXT.md` (Batch 8 permissions, new Batch 9), `docs/architecture/SYSTEM_DIAGRAMS.md` (use case diagram arrows, shipment sequence actor), `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` (roles, shipment flow, daily flow), and root `PROJECT_CONTEXT.md`.
+- Note: PDF exports `01-main-use-cases.pdf` and `12-shipment-and-receiving-sequence.pdf` are now stale and should be re-rendered from the updated Mermaid source.
+- Added `CLAUDE.md` with repository guidance for Claude Code.
 - Confirmed file storage direction: use Django local media storage during development and move uploads/generated reports to S3-compatible object storage during deployment.
 - Documented the recommended full tech stack: Django, Django REST Framework, PostgreSQL, Next.js/TypeScript, Tailwind CSS with shadcn/ui or Radix UI, Celery, Redis, local Django media storage, and S3-compatible deployment storage.
 - Updated root and detailed requirement documents with the development/deployment storage decision.
@@ -122,4 +125,4 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-Review and confirm shipment permissions, then proceed to implementation planning with Django local media storage for development.
+Proceed to implementation architecture planning: Django project/app breakdown, stock ledger design, and Docker Compose local environment, using Django local media storage for development.

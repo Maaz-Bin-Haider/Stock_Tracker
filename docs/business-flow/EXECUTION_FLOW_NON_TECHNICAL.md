@@ -33,7 +33,7 @@ The system records who logged in, when they logged in, and what actions they per
 User roles decide what each user can do:
 
 - Admin can do everything.
-- Purchase user can manage purchases and purchase refunds/cancellations.
+- Purchase user can manage purchases, purchase refunds/cancellations, and shipments.
 - Sale user can manage sales.
 - Viewer can only view records and reports.
 
@@ -212,7 +212,7 @@ Shipment is separate from purchase and collection.
 
 Stock can be purchased and collected in one location, then shipped later.
 
-The user creates a shipment when stock moves from one location to another.
+A purchase user or admin creates a shipment when stock moves from one location to another. Sale users and viewers can view shipments but cannot create, edit, delete, or receive them.
 
 Common shipment examples:
 
@@ -531,8 +531,8 @@ A normal daily flow may look like this:
 3. Purchase user enters new purchase invoices.
 4. Purchase user collects received stock against pending purchases.
 5. Purchase user records refunds/cancellations if supplier cancels or refunds anything.
-6. User creates shipments when stock moves between locations.
-7. User receives shipments when stock reaches destination.
+6. Purchase user or admin creates shipments when stock moves between locations.
+7. Purchase user or admin receives shipments when stock reaches destination.
 8. Sale user enters Dubai or Karachi sales.
 9. User checks reports and party-wise records.
 10. Admin or users review audit activity if needed.

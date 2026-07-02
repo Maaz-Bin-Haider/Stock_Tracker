@@ -92,7 +92,7 @@ The system will provide:
 | User Role | Description |
 | --- | --- |
 | Admin | Full access to all system functions |
-| Purchase User | Can manage purchases and purchase refunds/cancellations |
+| Purchase User | Can manage purchases, purchase refunds/cancellations, and shipments |
 | Sale User | Can manage sales |
 | Viewer | Can only view data and reports |
 
@@ -196,6 +196,7 @@ Purchase users shall be able to create, update, and delete:
 - purchases
 - purchase collections
 - purchase refunds/cancellations
+- shipments, including shipment receiving
 
 Purchase users shall also be able to create products during purchase entry.
 
@@ -1054,7 +1055,6 @@ The following are out of scope for the first version:
 
 The following items need final confirmation before development:
 
-- Who can create, update, and delete shipments. Current safe default is admin-only.
 - Final backup schedule, retention, and restore process.
 - Final report columns after business review.
 - Final AWS deployment architecture after local testing.

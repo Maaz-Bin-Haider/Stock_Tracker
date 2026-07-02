@@ -623,6 +623,7 @@ Exact role permissions:
 - Admin can do everything in the system.
 - Purchase user can create, update, and delete purchases.
 - Purchase user can create, update, and delete purchase refunds/cancellations.
+- Purchase user can create, update, and delete shipments, including shipment receiving (confirmed 2026-07-02; see Batch 9).
 - Sale user can create, update, and delete sales only.
 - All non-viewer users can view all system data.
 - Viewer can only view data and cannot create, update, or delete records.
@@ -694,6 +695,16 @@ Data import:
 
 - Bulk import from Excel is not required for opening stock, suppliers, customers, or products.
 - Products, suppliers/parties, customers, and opening stock will be entered manually one by one.
+
+### Batch 9 Requirements - Shipment Permission Confirmation (2026-07-02)
+
+The open shipment permission question is resolved:
+
+- Admin and purchase users can create, update, and delete shipments.
+- Admin and purchase users can record shipment receiving.
+- Sale users and viewers have view-only access to shipments.
+- No separate shipment/operator role will be added.
+- Reason: purchase users already own the inbound stock flow (purchase entry, collection, refunds/cancellations), and shipments are the continuation of that same flow, so admin-only would create a daily bottleneck without adding control.
 
 ### Documentation and Architecture Update
 

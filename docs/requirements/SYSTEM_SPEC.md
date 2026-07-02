@@ -139,7 +139,7 @@ Required main menu pages:
 | View sales | Yes | Yes | Yes | Yes |
 | Create/update/delete sales | Yes | No | Yes | No |
 | View shipments | Yes | Yes | Yes | Yes |
-| Create/update/delete shipments | Yes | Needs confirmation | No | No |
+| Create/update/delete shipments | Yes | Yes | No | No |
 | View stock ledger | Yes | Yes | Yes | Yes |
 | Create/update/delete stock adjustments | Yes | No | No | No |
 | View reports | Yes | Yes | Yes | Yes |
@@ -155,7 +155,7 @@ Required main menu pages:
 
 All non-viewer users can view all data across all locations. There are no location-level access restrictions for now.
 
-Shipment creation/edit/delete permission still needs final confirmation. For now, the safest default is admin-only until a shipment/operator role is explicitly approved.
+Shipment creation, editing, deletion, and receiving are allowed for admin and purchase users. This was confirmed on 2026-07-02: purchase users own the full inbound stock flow (purchase, collection, refund/cancellation), and shipments continue that same flow, so no separate shipment/operator role is needed.
 
 ## 7. Master Data
 
@@ -958,6 +958,6 @@ Future-ready fields:
 - Any edit to historical stock-affecting records should create adjustment/reversal ledger entries and then recalculate stock.
 - Use indexes on dates, product IDs, location IDs, supplier/customer IDs, status fields, and source references for fast search/filter.
 
-## 26. Remaining Confirmation Item
+## 26. Resolved Confirmation Items
 
-- Confirm who can create, update, and delete shipments. Current safe default in this specification is admin-only because purchase user was defined for purchases/refunds, and sale user was defined for sales only.
+- Shipment permissions (confirmed 2026-07-02): admin and purchase users can create, update, and delete shipments and record shipment receiving. Sale users and viewers have view-only access to shipments. No separate shipment/operator role is introduced.
