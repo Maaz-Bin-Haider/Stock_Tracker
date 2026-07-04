@@ -550,7 +550,24 @@ At month-end or review time, users can:
 - export reports to Excel or PDF
 - check audit activity
 
-## 25. Future Deployment Flow
+## 25. Admin Stock Valuation Flow
+
+Admin users have a separate Stock Valuation section that other users cannot see.
+
+It answers one question: how much is all the stock currently worth, based on what the business actually paid for it.
+
+The valuation works like this:
+
+- Every product's worth is calculated from its real purchase rates in AED, using a running weighted average per product per location.
+- Stock that is on hand, stock in transit between locations, and stock that is purchased but not yet collected are all counted, each shown separately with a combined total.
+- Shipping costs are not added to product worth.
+- When a purchase is refunded or cancelled, the related worth is removed automatically.
+
+The admin can view a summary (total worth, worth by location, worth by bucket, worth by category) and a full detail list (every product at every location with quantities, average cost, and value).
+
+Both views can be filtered and exported to Excel or PDF, and the export contains exactly the filtered data.
+
+## 26. Future Deployment Flow
 
 The system will first be tested locally.
 

@@ -35,6 +35,7 @@ The use case diagram shows what each type of user can do in the system.
 - Receive shipments
 - Create sales
 - Perform stock adjustments
+- View stock valuation (admin only)
 - View dashboard
 - View reports
 - Export reports
@@ -61,6 +62,7 @@ flowchart LR
         ReceiveShipments((Receive Shipments))
         Sales((Create/Update/Delete Sales))
         Adjustments((Stock Adjustments))
+        Valuation((View/Export Stock Valuation))
         Ledger((View Stock Ledger))
         Reports((View Reports))
         ExportReports((Export Reports))
@@ -82,6 +84,7 @@ flowchart LR
     Admin --> ReceiveShipments
     Admin --> Sales
     Admin --> Adjustments
+    Admin --> Valuation
     Admin --> Ledger
     Admin --> Reports
     Admin --> ExportReports

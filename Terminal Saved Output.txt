@@ -1,0 +1,1363 @@
+Last login: Thu Jul  2 17:28:25 on ttys005
+apple@Maaz-ki-Kitab Stock_Tracker % pwd   
+/Users/apple/Documents/SwissTech/Stock_Tracker
+apple@Maaz-ki-Kitab Stock_Tracker % claude
+╭─── Claude Code v2.1.198 ───────────────────────────────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting started                          │
+│                 Welcome back swiss!                │ Run /init to create a CLAUDE.md file with instru… │
+│                                                    │ ───────────────────────────────────────────────── │
+│                      ▗ ▗   ▖ ▖                     │ What's new                                        │
+│                                                    │ Claude in Chrome is now generally available       │
+│                        ▘▘ ▝▝                       │ Added background agent notifications in `claude … │
+│    Sonnet 5 · Claude Pro ·                         │ Added `/dataviz` skill for chart and dashboard d… │
+│    technical.minds0007@gmail.com's Organization    │ /release-notes for more                           │
+│        ~/Documents/SwissTech/Stock_Tracker         │                                                   │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭─── Claude Code v2.1.198 ───────────────────────────────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting started                          │
+│                 Welcome back swiss!                │ Run /init to create a CLAUDE.md file with instru… │
+│                                                    │ ───────────────────────────────────────────────── │
+│                      ▗ ▗   ▖ ▖                     │ What's new                                        │
+│                                                    │ Claude in Chrome is now generally available       │
+│                        ▘▘ ▝▝                       │ Added background agent notifications in `claude … │
+│    Sonnet 5 · Claude Pro ·                         │ Added `/dataviz` skill for chart and dashboard d… │
+│    technical.minds0007@gmail.com's Organization    │ /release-notes for more                           │
+│        ~/Documents/SwissTech/Stock_Tracker         │                                                   │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+ ▎ Fable 5 is back.
+ ▎ Until July 7, you can use up to 50% of your plan's weekly usage limit on Fable 5. If you hit your
+ ▎ limit, you can continue on Fable 5 with usage credits. Fable 5 draws down usage faster than Opus 4.8.
+ ▎ Learn more (https://support.claude.com/en/articles/15424964-claude-fable-5-promotional-access)
+
+❯ /model                                                                                                  
+  ⎿  Set model to Fable 5 and saved as your default for new sessions
+
+❯ we are making an Stock Tracking System All the documents are present in this folder Understand the      
+  current architecture completely then create a claude.md file I need your help to create a serious       
+  architecture for this project first undestand the current then we will move forward and don't commit    
+  any changes                                                                                             
+  
+⏺ Skill(init)
+  ⎿  Successfully loaded skill
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ This is a documentation-first project — src/ is empty. Let me read all the key documents.
+
+  Read 7 files (ctrl+o to expand)
+
+⏺ Write(CLAUDE.md)
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Create file
+ CLAUDE.md
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   1 # CLAUDE.md
+   2 
+   3 This file provides guidance to Claude Code (claude.ai/code) when working with code in this reposit
+     ory.
+   4
+   5 ## Project State
+   6
+   7 This is the planning/documentation phase of the SwissTech Stock Tracker — a web-based inventory sy
+     stem replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). **No applicatio
+     n code exists yet**; `src/`, `tests/`, `scripts/`, and `deployment/` are empty placeholders. There
+      are no build, lint, or test commands until implementation starts.
+   8
+   9 Decided tech stack (see `docs/requirements/SYSTEM_SPEC.md` §23): Django + Django REST Framework, P
+     ostgreSQL, Next.js/TypeScript frontend with Tailwind CSS (shadcn/ui or Radix UI), Celery + Redis f
+     or background jobs, Docker Compose locally. File uploads use local Django media in development and
+      S3-compatible storage in deployment (DB stores metadata/paths only, never file contents). Target
+     deployment is a single EC2 instance on AWS after local testing.
+  10
+  11 ## Document Map
+  12
+  13 Read in this order of authority when documents seem to conflict:
+  14
+  15 - `docs/requirements/SRS.md` — formal requirements (FR-001 … FR-114), acceptance criteria, out-of-
+     scope list
+  16 - `docs/requirements/SYSTEM_SPEC.md` — implementation-oriented spec: permission matrix, field list
+     s, report columns, suggested DB tables, implementation notes
+  17 - `docs/architecture/SYSTEM_DIAGRAMS.md` — Mermaid source for use case, activity, sequence, class,
+      and ER diagrams (PDF exports in `docs/architecture/diagrams/pdf/`)
+  18 - `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` — end-to-end business flow in plain languag
+     e
+  19 - `docs/requirements/PROJECT_CONTEXT.md` — requirements gathering history
+  20 - `PROJECT_CONTEXT.md` (root) — current state summary, open items, change log
+  21
+  22 ## Core Domain Rules
+  23
+  24 These invariants drive the whole design; any implementation or doc change must preserve them:
+  25
+  26 - **The stock ledger is the single source of truth.** Every stock-changing event (purchase collect
+     ion, refund/cancellation, shipment out/receive/cancel, sale, adjustment, edits/deletes affecting s
+     tock) creates ledger entries. Stock balances are derived from the ledger, never stored as independ
+     ent truth.
+  27 - **History is never destroyed.** Refunds, cancellations, edits, and deletes use reversal ledger e
+     ntries referencing the original invoice/line; originals stay traceable. Prefer soft delete for sto
+     ck-affecting records. Everything important is audited (before/after values).
+  28 - **Stock lives in three buckets per product/location:** physical, pending (purchased but not coll
+     ected), and in-transit (shipped but not received).
+  29 - **Purchase entry, purchase collection, and shipments are three separate workflows.** Collection
+     increases stock at the collection location; shipments move already-collected stock between locatio
+     ns.
+  30 - **Location rules:** all seven locations (Sydney, Melbourne, Perth, New Zealand, Dubai, Houston,
+     Karachi) can purchase; only Dubai and Karachi can sell. Australia cities are tracked separately —
+     "combined Australia" is a calculated view only. Dubai→Karachi transfer is its own flow.
+  31 - **Money:** base currency is AED; purchase lines carry their own currency, exchange rate (manuall
+     y overridable), and GST rate. GST applies to Australia/NZ purchases now, must be expandable. Refun
+     ds must reverse GST and AED values. Shipments have no currency handling.
+  32 - **Statuses are computed, never set manually** (purchase status from line quantities; pending = p
+     urchased − collected − cancelled/refunded).
+  33 - **Negative stock and over-receiving are allowed with warnings** (negative requires user confirma
+     tion); mismatches get highlighted.
+  34 - Single-company for now, but schema should carry `company_id` for future multi-company support.
+  35 - Out of scope for v1: profit calculation, payments, accounting, barcode/IMEI/serial tracking, low
+     -stock alerts, Excel bulk import.
+  36
+  37 ## Roles
+  38
+  39 Admin (full access) · Purchase User (purchases, collection, refunds/cancellations, product creatio
+     n during purchase) · Sale User (sales CRUD only) · Viewer (read-only). All users can view all data
+      across all locations. Full matrix in `SYSTEM_SPEC.md` §6. Open item: shipment create/update/delet
+     e is admin-only until confirmed otherwise.
+❯ we are making an Stock Tracking System All the documents are present in this folder Understand the      
+  current architecture completely then create a claude.md file I need your help to create a serious       
+  architecture for this project first undestand the current then we will move forward and don't commit    
+  any changes                                                                                             
+
+⏺ Skill(init)
+  ⎿  Successfully loaded skill
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ This is a documentation-first project — src/ is empty. Let me read all the key documents.
+
+  Read 7 files (ctrl+o to expand)
+
+⏺ Write(CLAUDE.md)
+  ⎿  Wrote 50 lines to CLAUDE.md
+      2 # CLAUDE.md
+        repository.rovides guidance to Claude Code (claude.ai/code) when working with code in this 
+      5 ## Project State
+      6 
+        tory system replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). *
+        y placeholders. There are no build, lint, or test commands until implementation starts.empt
+      8 
+        work, PostgreSQL, Next.js/TypeScript frontend with Tailwind CSS (shadcn/ui or Radix UI), Ce
+        ia in development and S3-compatible storage in deployment (DB stores metadata/paths only, n
+        ever file contents). Target deployment is a single EC2 instance on AWS after local testin
+     … +77 lines (ctrl+o to expand)
+
+  Wrote 2 memories (ctrl+o to expand)
+
+⏺ Done. I read every document in the repo and created CLAUDE.md (uncommitted, as you asked).
+
+  What I understood about the current architecture:
+
+  This is a documentation-only repo right now — src/, tests/, scripts/, and deployment/ are empty
+  placeholders. What exists is a complete planning package for a web-based inventory system replacing the
+  stock_tracker_original.xlsx workflow:
+
+  - Requirements: a formal SRS with 114 functional requirements plus an implementation-oriented system
+  spec with the permission matrix, field lists, ~18 report definitions, and 29 suggested database tables.
+  - Architecture diagrams: Mermaid source in SYSTEM_DIAGRAMS.md covering use cases, 8 activity flows, 4
+  sequence flows, a class diagram, and the ER model — all also exported as 15 PDFs.
+  - Decided stack: Django + DRF, PostgreSQL, Next.js/TypeScript with Tailwind + shadcn/Radix, Celery +
+  Redis, Docker Compose locally, single EC2 + S3-compatible storage later.
+
+  The design's backbone is an event-sourced-style stock ledger: every stock-changing event (collection,
+  refund, shipment out/receive, sale, adjustment) writes ledger entries across three buckets (physical /
+  pending / in-transit), balances are always derived from the ledger, and nothing is ever destroyed —
+  edits and refunds create reversal entries referencing the original. Purchase entry, collection, and
+  shipment are deliberately three separate workflows. Only Dubai and Karachi sell; all seven locations
+  buy; AED is the base currency with per-line exchange rates and GST (AU/NZ) that must reverse on refunds.
+
+  The CLAUDE.md captures: the project state and stack, a document map with order of authority, the core
+  domain invariants, roles, the PROJECT_CONTEXT.md maintenance rule (from your AGENTS.md), and
+  commit/naming conventions.
+
+  One thing to flag before we design the serious architecture: the docs carry three open items — shipment
+  permissions (currently defaulted to admin-only), backup/retention strategy, and final report columns.
+  The shipment permission one is worth settling early since it affects the role model. Whenever you're
+  ready, we can move on to implementation architecture — I'd suggest starting with the Django app/module
+  breakdown and the stock ledger design, since everything else hangs off it.
+
+✻ Cooked for 1m 45s
+
+※ recap: We're building the SwissTech Stock Tracker architecture; I reviewed all planning docs and created
+  CLAUDE.md (uncommitted). Next: decide the implementation architecture, starting with the Django module 
+  breakdown and stock ledger design. (disable recaps in /config)
+  
+❯ One thing to flag before we design the serious architecture: the docs carry three open items — shipment 
+    permissions (currently defaulted to admin-only), backup/retention strategy, and final report columns. 
+    The shipment permission one is worth settling early since it affects the role model. YES lets first   
+  do this                                                                                                 
+  
+⏺ This is a genuine business decision, so let me lay out the options with their trade-offs.
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ☐ Shipments 
+
+※ recap: We're building the SwissTech Stock Tracker architecture; I reviewed all planning docs and created
+  CLAUDE.md (uncommitted). Next: decide the implementation architecture, starting with the Django module
+  breakdown and stock ledger design. (disable recaps in /config)
+
+❯ One thing to flag before we design the serious architecture: the docs carry three open items — shipment 
+    permissions (currently defaulted to admin-only), backup/retention strategy, and final report columns. 
+    The shipment permission one is worth settling early since it affects the role model. YES lets first   
+  do this                                                                                                 
+
+⏺ This is a genuine business decision, so let me lay out the options with their trade-offs.
+
+⏺ User answered Claude's questions:
+  ⎿  · Who should be able to create, update, and delete shipments (and record shipment receiving)? → Admin
+     + Purchase User
+
+⏺ Admin + Purchase User it is. Now I'll propagate this decision through all the documents per your
+  maintenance rule. Let me first find every place the open item is mentioned.
+     
+  Searched for 2 patterns (ctrl+o to expand)
+
+⏺ Now let me check the diagrams doc for actor references in the shipment flows.
+
+  Searching for 3 patterns, reading 1 file… (ctrl+o to expand)
+  ⎿  docs/requirements/PROJECT_CONTEXT.md
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 1 line, removed 1 line
+      139  | View sales | Yes | Yes | Yes | Yes |
+      140  | Create/update/delete sales | Yes | No | Yes | No |
+      141  | View shipments | Yes | Yes | Yes | Yes |
+      142 -| Create/update/delete shipments | Yes | Needs confirmation | No | No |                 
+      142 +| Create/update/delete shipments | Yes | Yes | No | No |                                
+      143  | View stock ledger | Yes | Yes | Yes | Yes |
+      144  | Create/update/delete stock adjustments | Yes | No | No | No |
+      145  | View reports | Yes | Yes | Yes | Yes |
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 1 line, removed 1 line
+      155  
+      156  All non-viewer users can view all data across all locations. There are no location-level
+            access restrictions for now.
+      157  
+      158 -Shipment creation/edit/delete permission still needs final confirmation. For now, the sa
+          -fest default is admin-only until a shipment/operator role is explicitly approved.       
+      158 +Shipment creation, editing, deletion, and receiving are allowed for admin and purchase u
+          +sers. This was confirmed on 2026-07-02: purchase users own the full inbound stock flow (
+          +purchase, collection, refund/cancellation), and shipments continue that same flow, so no
+          + separate shipment/operator role is needed.                                             
+      159  
+      160  ## 7. Master Data
+      161  
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 2 lines, removed 2 lines
+      958  - Any edit to historical stock-affecting records should create adjustment/reversal ledge
+           r entries and then recalculate stock.
+      959  - Use indexes on dates, product IDs, location IDs, supplier/customer IDs, status fields,
+            and source references for fast search/filter.
+      960  
+      961 -## 26. Remaining Confirmation Item                                                      
+      961 +## 26. Resolved Confirmation Items                                                      
+      962  
+      963 -- Confirm who can create, update, and delete shipments. Current safe default in this spe
+          -cification is admin-only because purchase user was defined for purchases/refunds, and sa
+          -le user was defined for sales only.                                                     
+      963 +- Shipment permissions (confirmed 2026-07-02): admin and purchase users can create, upda
+          +te, and delete shipments and record shipment receiving. Sale users and viewers have view
+          +-only access to shipments. No separate shipment/operator role is introduced.            
+
+⏺ 2. SRS.md — user classes, FR-007, and open items:
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 1 line, removed 1 line
+      92  | User Role | Description |
+      93  | --- | --- |
+      94  | Admin | Full access to all system functions |
+      95 -| Purchase User | Can manage purchases and purchase refunds/cancellations |              
+      95 +| Purchase User | Can manage purchases, purchase refunds/cancellations, and shipments |  
+      96  | Sale User | Can manage sales |
+      97  | Viewer | Can only view data and reports |
+      98  
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 1 line
+      196  - purchases
+      197  - purchase collections
+      198  - purchase refunds/cancellations
+      199 +- shipments, including shipment receiving                                               
+      200  
+      201  Purchase users shall also be able to create products during purchase entry.
+      202  
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Removed 1 line
+      1055  
+      1056  The following items need final confirmation before development:
+      1057  
+      1058 -- Who can create, update, and delete shipments. Current safe default is admin-only.    
+      1058  - Final backup schedule, retention, and restore process.
+      1059  - Final report columns after business review.
+      1060  - Final AWS deployment architecture after local testing.
+
+⏺ 3. SYSTEM_DIAGRAMS.md — use case diagram arrows and the shipment sequence actor:
+
+⏺ Update(docs/architecture/SYSTEM_DIAGRAMS.md)
+  ⎿  Added 2 lines
+       97      PurchaseUser --> Purchases
+       98      PurchaseUser --> Collection
+       99      PurchaseUser --> Refunds
+      100 +    PurchaseUser --> Shipments                                                          
+      101 +    PurchaseUser --> ReceiveShipments                                                   
+      102      PurchaseUser --> Ledger
+      103      PurchaseUser --> Reports
+      104      PurchaseUser --> ExportReports
+
+⏺ Update(docs/architecture/SYSTEM_DIAGRAMS.md)
+  ⎿  Added 1 line, removed 1 line
+      385  
+      386  ```mermaid
+      387  sequenceDiagram
+      388 -    actor User as Admin/Shipment User                                                   
+      388 +    actor User as Purchase User/Admin                                                   
+      389      participant UI as Web App UI
+      390      participant ShipmentService as Shipment Service
+      391      participant StockService as Stock Service
+
+⏺ 4. Business flow doc — role description and daily flow:
+
+⏺ Reading 1 file… (ctrl+o to expand)
+  ⎿  docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md
+
+⏺ Update(docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
+  ⎿  Added 1 line, removed 1 line
+      33  User roles decide what each user can do:
+      34  
+      35  - Admin can do everything.
+      36 -- Purchase user can manage purchases and purchase refunds/cancellations.                 
+      36 +- Purchase user can manage purchases, purchase refunds/cancellations, and shipments.     
+      37  - Sale user can manage sales.
+      38  - Viewer can only view records and reports.
+      39  
+
+⏺ Update(docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
+  ⎿  Added 1 line, removed 1 line
+      212  
+      213  Stock can be purchased and collected in one location, then shipped later.
+      214  
+      215 -The user creates a shipment when stock moves from one location to another.              
+      215 +A purchase user or admin creates a shipment when stock moves from one location to anothe
+          +r. Sale users and viewers can view shipments but cannot create, edit, delete, or receive
+          + them.                                                                                  
+      216  
+      217  Common shipment examples:
+      218  
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
+  ⎿  Added 2 lines, removed 2 lines
+      531  3. Purchase user enters new purchase invoices.
+      532  4. Purchase user collects received stock against pending purchases.
+      533  5. Purchase user records refunds/cancellations if supplier cancels or refunds anything.
+      534 -6. User creates shipments when stock moves between locations.                           
+      535 -7. User receives shipments when stock reaches destination.                              
+      534 +6. Purchase user or admin creates shipments when stock moves between locations.         
+      535 +7. Purchase user or admin receives shipments when stock reaches destination.            
+      536  8. Sale user enters Dubai or Karachi sales.
+      537  9. User checks reports and party-wise records.
+      538  10. Admin or users review audit activity if needed.
+
+⏺ 5. Requirements gathering log — appending the decision as a new dated batch:
+
+⏺ Update(docs/requirements/PROJECT_CONTEXT.md)
+  ⎿  Added 1 line
+      623  - Admin can do everything in the system.
+      624  - Purchase user can create, update, and delete purchases.
+      625  - Purchase user can create, update, and delete purchase refunds/cancellations.
+      626 +- Purchase user can create, update, and delete shipments, including shipment receiving (
+          +confirmed 2026-07-02; see Batch 9).                                                     
+      627  - Sale user can create, update, and delete sales only.
+      628  - All non-viewer users can view all system data.
+      629  - Viewer can only view data and cannot create, update, or delete records.
+
+⏺ Update(docs/requirements/PROJECT_CONTEXT.md)
+  ⎿  Added 10 lines
+      696  - Bulk import from Excel is not required for opening stock, suppliers, customers, or pro
+           ducts.
+      697  - Products, suppliers/parties, customers, and opening stock will be entered manually one
+            by one.
+      698  
+      699 +### Batch 9 Requirements - Shipment Permission Confirmation (2026-07-02)                
+      700 +                                                                                        
+      701 +The open shipment permission question is resolved:                                      
+      702 +                                                                                        
+      703 +- Admin and purchase users can create, update, and delete shipments.                    
+      704 +- Admin and purchase users can record shipment receiving.                               
+      705 +- Sale users and viewers have view-only access to shipments.                            
+      706 +- No separate shipment/operator role will be added.                                     
+      707 +- Reason: purchase users already own the inbound stock flow (purchase entry, collection,
+          + refunds/cancellations), and shipments are the continuation of that same flow, so admin-
+          +only would create a daily bottleneck without adding control.                            
+      708 +                                                                                        
+      709  ### Documentation and Architecture Update
+      710  
+      711  - A root-level project context file is maintained at `PROJECT_CONTEXT.md` for future con
+           tinuation.
+
+⏺ 6. Root PROJECT_CONTEXT.md — roles, open items, change log, next step:
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 1 line, removed 1 line
+      66  ## Roles
+      67  
+      68  - Admin: full access.
+      69 -- Purchase user: purchases, purchase collection, purchase refunds/cancellations, and prod
+         -uct creation during purchase flow.                                                       
+      69 +- Purchase user: purchases, purchase collection, purchase refunds/cancellations, shipment
+         +s (including receiving), and product creation during purchase flow.                      
+      70  - Sale user: sales only for create/update/delete, with view access to system data.
+      71  - Viewer: read-only.
+      72  
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Removed 1 line
+      72  
+      73  ## Open Items
+      74  
+      75 -- Confirm who can create, update, and delete shipments. Current safe default is admin-onl
+         -y.                                                                                       
+      75  - Backup schedule, retention, and restore process are deferred.
+      76  - Final report columns can be refined after business review.
+      77  - Final AWS architecture will be decided after local testing, with S3-compatible storage
+          expected for uploaded invoices and generated reports.
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 4 lines
+       91  
+       92  ### 2026-07-02
+       93  
+       94 +- Resolved the shipment permission open item: admin and purchase users can create, updat
+          +e, and delete shipments and record shipment receiving; sale users and viewers are view-o
+          +nly. No separate shipment/operator role is added.                                       
+       95 +- Updated for the shipment permission decision: `docs/requirements/SYSTEM_SPEC.md` (perm
+          +ission matrix, section 6 note, section 26), `docs/requirements/SRS.md` (user classes, FR
+          +-007, open items), `docs/requirements/PROJECT_CONTEXT.md` (Batch 8 permissions, new Batc
+          +h 9), `docs/architecture/SYSTEM_DIAGRAMS.md` (use case diagram arrows, shipment sequence
+          + actor), `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` (roles, shipment flow, dai
+          +ly flow), and root `PROJECT_CONTEXT.md`.                                                
+       96 +- Note: PDF exports `01-main-use-cases.pdf` and `12-shipment-and-receiving-sequence.pdf`
+          + are now stale and should be re-rendered from the updated Mermaid source.               
+       97 +- Added `CLAUDE.md` with repository guidance for Claude Code.                           
+       98  - Confirmed file storage direction: use Django local media storage during development an
+           d move uploads/generated reports to S3-compatible object storage during deployment.
+       99  - Documented the recommended full tech stack: Django, Django REST Framework, PostgreSQL,
+            Next.js/TypeScript, Tailwind CSS with shadcn/ui or Radix UI, Celery, Redis, local Djang
+           o media storage, and S3-compatible deployment storage.
+      100  - Updated root and detailed requirement documents with the development/deployment storag
+           e decision.
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 1 line, removed 1 line
+      125  
+      126  ## Next Recommended Step
+      127  
+      128 -Review and confirm shipment permissions, then proceed to implementation planning with Dj
+          -ango local media storage for development.                                               
+      128 +Proceed to implementation architecture planning: Django project/app breakdown, stock led
+          +ger design, and Docker Compose local environment, using Django local media storage for d
+          +evelopment.                                                                             
+
+⏺ 7. CLAUDE.md — update the roles note:
+
+⏺ Update(CLAUDE.md)
+  ⎿  Added 1 line, removed 1 line
+      36  
+      37  ## Roles
+      38  
+      39 -Admin (full access) · Purchase User (purchases, collection, refunds/cancellations, produc
+         -t creation during purchase) · Sale User (sales CRUD only) · Viewer (read-only). All users
+         - can view all data across all locations. Full matrix in `SYSTEM_SPEC.md` §6. Open item: s
+         -hipment create/update/delete is admin-only until confirmed otherwise.                    
+      39 +Admin (full access) · Purchase User (purchases, collection, refunds/cancellations, shipme
+         +nts incl. receiving, product creation during purchase) · Sale User (sales CRUD only) · Vi
+         +ewer (read-only). All users can view all data across all locations. Full matrix in `SYSTE
+         +M_SPEC.md` §6. Shipment permissions were confirmed 2026-07-02: Admin + Purchase User; rem
+         +aining open items are backup strategy and final report columns.                          
+      40  
+      41  ## Documentation Maintenance Rule
+      42  
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Clean — the only remaining "admin-only" mention is the rationale text in the new Batch 9 entry, which is
+  intentional.
+
+  Done. The shipment permission open item is resolved and propagated: Admin + Purchase User can create, 
+  update, delete shipments and record receiving; Sale users and Viewers are view-only. Nothing is
+  committed — all changes are in the working tree.
+  
+  Files updated:
+
+  - docs/requirements/SYSTEM_SPEC.md — permission matrix row changed from "Needs confirmation" to "Yes"
+  for Purchase User; the §6 note now states the confirmed rule with rationale; §26 renamed from "Remaining
+  Confirmation Item" to "Resolved Confirmation Items" recording the decision.
+  - docs/requirements/SRS.md — Purchase User class description and FR-007 now include shipments and
+  receiving; the shipment bullet is removed from §11 Open Items.
+  - docs/requirements/PROJECT_CONTEXT.md — Batch 8 permissions list updated, plus a new "Batch 9" entry
+  recording the decision, its date, and the reasoning.
+  - docs/architecture/SYSTEM_DIAGRAMS.md — use case diagram now has PurchaseUser --> Shipments and
+  PurchaseUser --> ReceiveShipments arrows; the shipment sequence diagram actor changed from
+  "Admin/Shipment User" to "Purchase User/Admin".
+  - docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md — role summary, shipment flow section, and daily
+  flow steps now name purchase user/admin explicitly.
+  - Root PROJECT_CONTEXT.md — roles updated, open item removed, change log entry added (per your
+  maintenance rule), and Next Recommended Step now points at implementation architecture planning.
+  maintenance rule), and Next Recommended Step now points at implementation architecture planning.
+  - CLAUDE.md — roles section reflects the decision and the two remaining open items.
+
+  One heads-up: two PDF exports are now stale relative to their Mermaid source — 01-main-use-cases.pdf and
+  12-shipment-and-receiving-sequence.pdf. I noted this in the change log; they'll need re-rendering
+  whenever you next export diagrams.
+
+  That leaves two open items, both deferrable (backup strategy is a deployment-phase concern, and report
+  columns are explicitly meant to be narrowed after business review). So we're clear to move to the
+  serious architecture — I'd start with the Django project/app breakdown and the stock ledger design,
+  since every module hangs off the ledger. Ready when you are.
+
+✻ Churned for 4m 3s
+
+❯ yes lets move to the architecture planning now                                                          
+
+⏺ We're moving into implementation architecture. I'll write a technical architecture document that turns
+  the spec into a concrete build plan — Django app breakdown, the stock ledger design (the heart of the
+  system), API/auth approach, frontend structure, and local environment — then update the context files
+  per your maintenance rule. Everything stays uncommitted.
+
+⏺ Write(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Wrote 238 lines to docs/architecture/TECHNICAL_ARCHITECTURE.md
+       2 # SwissTech Inventory System Technical Architecture
+       3 This document turns the requirements (`docs/requirements/SRS.md`, `docs/requirements/SYSTE
+         M_SPEC.md`) into a concrete implementation architecture. It is the reference for how the s
+         ystem is built; the SRS remains the reference for what the system must do.
+       4 
+       6 ## 1. System Overview
+       7 ```text
+       8                         ┌─────────────────────────────────────────┐
+       9                         │              Browser (user)             │
+      10                         └────────────────────┬────────────────────┘
+     … +323 lines (ctrl+o to expand)
+
+⏺ Now updating the context files per the maintenance rule:
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 1 line
+      43  - `docs/requirements/SRS.md`: formal Software Requirements Specification.
+      44  - `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md`: non-technical execution flow from
+           new system setup to daily/monthly use.
+      45  - `docs/architecture/SYSTEM_DIAGRAMS.md`: use case, activity, sequence, class, and ER dia
+          grams.
+      46 +- `docs/architecture/TECHNICAL_ARCHITECTURE.md`: implementation architecture — Django app
+         + breakdown, stock ledger design, API/auth, frontend structure, Docker Compose environment
+         +, key decisions, and implementation phases.                                              
+      47  - `docs/architecture/diagrams/pdf/`: PDF exports of individual diagrams rendered from the
+           Mermaid diagram source.
+      48  
+      49  ## Current Requirements Summary
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 1 line
+      92  
+      93  ### 2026-07-02
+      94  
+      95 +- Created `docs/architecture/TECHNICAL_ARCHITECTURE.md`: monorepo layout (`src/backend`, 
+         +`src/frontend`), 11 Django apps with `inventory` owning the append-only stock ledger and 
+         +a materialized `stock_balances` table, a single `post_event` posting service as the only 
+         +ledger writer, session-cookie auth behind a single nginx origin, DRF API with OpenAPI-gen
+         +erated frontend client, Celery-based Excel/PDF exports, Docker Compose local environment,
+         + testing strategy keyed to the event→ledger mapping table, and implementation phases M0–M
+         +8.                                                                                       
+      96  - Resolved the shipment permission open item: admin and purchase users can create, update
+          , and delete shipments and record shipment receiving; sale users and viewers are view-onl
+          y. No separate shipment/operator role is added.
+      97  - Updated for the shipment permission decision: `docs/requirements/SYSTEM_SPEC.md` (permi
+          ssion matrix, section 6 note, section 26), `docs/requirements/SRS.md` (user classes, FR-0
+          07, open items), `docs/requirements/PROJECT_CONTEXT.md` (Batch 8 permissions, new Batch 9
+          ), `docs/architecture/SYSTEM_DIAGRAMS.md` (use case diagram arrows, shipment sequence act
+          or), `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` (roles, shipment flow, daily fl
+          ow), and root `PROJECT_CONTEXT.md`.
+      98  - Note: PDF exports `01-main-use-cases.pdf` and `12-shipment-and-receiving-sequence.pdf`
+          are now stale and should be re-rendered from the updated Mermaid source.
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 1 line, removed 1 line
+      127  
+      128  ## Next Recommended Step
+      129  
+      130 -Proceed to implementation architecture planning: Django project/app breakdown, stock led
+          -ger design, and Docker Compose local environment, using Django local media storage for d
+          -evelopment.                                                                             
+      130 +Review `docs/architecture/TECHNICAL_ARCHITECTURE.md`, then begin phase M0: scaffold the 
+          +Django project and apps, the Next.js app, and the Docker Compose local environment.     
+
+⏺ Update(README.md)
+  ⎿  Added 1 line
+      29  - [Software Requirements Specification](docs/requirements/SRS.md)
+      30  - [Non-Technical Execution Flow](docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
+      31  - [System Diagrams](docs/architecture/SYSTEM_DIAGRAMS.md)
+      32 +- [Technical Architecture](docs/architecture/TECHNICAL_ARCHITECTURE.md)                  
+      33  
+      34  Diagram PDF exports are stored in:
+      35  
+
+⏺ Update(CLAUDE.md)
+  ⎿  Added 1 line
+      14  
+      15  - `docs/requirements/SRS.md` — formal requirements (FR-001 … FR-114), acceptance criteria
+          , out-of-scope list
+      16  - `docs/requirements/SYSTEM_SPEC.md` — implementation-oriented spec: permission matrix, f
+          ield lists, report columns, suggested DB tables, implementation notes
+      17 +- `docs/architecture/TECHNICAL_ARCHITECTURE.md` — how it gets built: monorepo layout, Dja
+         +ngo app breakdown, ledger posting design (`post_event` service, event→ledger mapping tabl
+         +e), API/auth, frontend structure, implementation phases M0–M8                            
+      18  - `docs/architecture/SYSTEM_DIAGRAMS.md` — Mermaid source for use case, activity, sequenc
+          e, class, and ER diagrams (PDF exports in `docs/architecture/diagrams/pdf/`)
+      19  - `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` — end-to-end business flow in plai
+          n language
+      20  - `docs/requirements/PROJECT_CONTEXT.md` — requirements gathering history
+
+⏺ The technical architecture is written: docs/architecture/TECHNICAL_ARCHITECTURE.md, with README.md,
+  PROJECT_CONTEXT.md (change log + next step), and CLAUDE.md updated per your maintenance rule. Nothing is
+  committed.
+
+  The document turns the spec into a build plan. The decisions that shape everything:
+
+  The stock ledger design (section 5) is the heart. The ledger is an append-only table — rows are never
+  updated or deleted; corrections and refunds are reversal rows referencing the original. Balances live in
+  a materialized stock_balances table (product × location × bucket) updated in the same database
+  transaction as each ledger insert with row-level locking, so list pages and the dashboard are fast while
+  the ledger stays the source of truth. A rebuild_stock_balances command recomputes everything from the
+  ledger and reports drift, which also doubles as a consistency check in tests. Critically, there's
+  exactly one writer: a post_event service in the inventory app that every module must call — it enforces
+  transactions, quantity validation, the negative-stock confirmation flag, and in-transaction audit writes
+  in one place, so a future feature can't forget any of them. Section 5.2 has the full event→ledger
+  mapping table (purchase = +PENDING, collection = −PENDING/+PHYSICAL, shipment = −PHYSICAL/+IN_TRANSIT,
+  etc.) which also serves as the test specification.
+
+  Backend: one Django project, 11 focused apps (core, accounts, masterdata, products, purchases,
+  shipments, sales, inventory, reports, audits, attachments). Statuses and pending quantities are always
+  computed, never stored as user input. Money values (AED conversion, GST) are frozen at entry time so
+  history never drifts when rates change.
+
+  API and auth: DRF under /api/v1/, with stock-changing actions as explicit endpoints (collections,
+  refunds, receipts) rather than generic updates. Session-cookie auth behind a single nginx origin —
+  simplest correct option for a first-party web app, and login/logout audit comes free. Permissions are
+  one class per module driven by a static role matrix mirroring the spec. The OpenAPI schema generates the
+  frontend's typed client so the two sides can't silently drift.
+  every module must call — it enforces transactions, quantity validation, the negative-stock
+  confirmation flag, and in-transaction audit writes in one place, so a future feature can't forget
+  any of them. Section 5.2 has the full event→ledger mapping table (purchase = +PENDING, collection =
+  −PENDING/+PHYSICAL, shipment = −PHYSICAL/+IN_TRANSIT, etc.) which also serves as the test
+  specification.
+
+  Backend: one Django project, 11 focused apps (core, accounts, masterdata, products, purchases,
+  shipments, sales, inventory, reports, audits, attachments). Statuses and pending quantities are
+  always computed, never stored as user input. Money values (AED conversion, GST) are frozen at entry
+  time so history never drifts when rates change.
+
+  API and auth: DRF under /api/v1/, with stock-changing actions as explicit endpoints (collections,
+  refunds, receipts) rather than generic updates. Session-cookie auth behind a single nginx origin —
+  simplest correct option for a first-party web app, and login/logout audit comes free. Permissions are
+  one class per module driven by a static role matrix mirroring the spec. The OpenAPI schema generates the
+  frontend's typed client so the two sides can't silently drift.
+
+  Frontend: Next.js App Router with routes mirroring the main navigation, TanStack Query, shadcn/ui, and a
+  shared DataTable component (search/filters/quick-totals) that every list page reuses.
+
+  Delivery: Docker Compose locally (postgres, redis, backend, celery worker, frontend, nginx), and phases
+  M0–M8 where stock correctness (M2–M3) is built and verified before anything depends on it. Section 14
+  records the eight key decisions with rationale, ADR-style.
+
+  Worth a read before we build — especially sections 5 (ledger) and 15 (phases). If you're happy with it,
+  the next step is M0: scaffolding the Django project, Next.js app, and Compose environment.
+
+✻ Churned for 7m 15s
+
+※ recap: Planning the SwissTech stock tracker: shipment permissions are settled (Admin + Purchase User) 
+  and the full technical architecture doc is written, with all docs updated and uncommitted. Next: review 
+  the architecture, then start M0 scaffolding (Django, Next.js, Docker Compose). (disable recaps in 
+  /config)
+
+❯ There are some new requirements                                                                         
+
+⏺ Go ahead — what are the new requirements? Once you share them, I'll assess how they fit the current
+  design and update the requirement docs, diagrams, and architecture accordingly (still without committing
+  anything).
+
+✻ Churned for 17s
+
+❯ admin can view the total worth of all products currenly in-stock a complete seperate section with       
+  exportable reports PDF,Excel full details summary of presnt stock according to their actual purchasing  
+  rates, and the second requirement is the system UI must be light, modern and professional by default,it 
+  aslo supports a dark mode not just reversing colors the client need a professional, dark mode, the      
+  third requirement is system must be responsinve to be used on ipads, small screen laptops and small     
+  tablets, it must adapt large and small screen sizes perfectly. Also you have now full understanding of  
+  requirements question if any requirement is left then can create issues in future                       
+  
+⏺ Good — these three are all implementable, but the first one hides a genuinely important business
+  decision that I need from you before I can write it into the docs correctly, and while reviewing for
+  gaps I found one more that will bite later if left undefined. Let me ask now:
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+⏺ User answered Claude's questions:
+  ⎿  · Stock worth must be calculated at "actual purchasing rates" — but the same product is bought at 
+     different prices over time. When 30 units remain from purchases at different rates, which costing 
+     method should the valuation use? → Weighted average (Recommended)
+     · Which stock should count toward the "total worth currently in stock"? → Physical + in-transit + 
+     pending
+     · Should shipping costs be included in the stock worth? → No, purchase rates only (Recommended)
+     · Gap I found while reviewing: your locations span 5 time zones (Australia, NZ, Dubai, USA, 
+     Pakistan). What defines "today" for the dashboard's today's-sales card, date filters, and daily 
+     reports? → Dubai time (Recommended)
+   
+  Searched for 1 pattern (ctrl+o to expand)
+
+⏺ Now applying updates. 1. SYSTEM_SPEC.md — navigation, permission matrix, and new sections:
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 1 line
+      58  - Party-wise Sale Records
+      59  - Stock Ledger
+      60  - Stock Adjustments
+      61 +- Stock Valuation (admin only)                                                           
+      62  - Reports
+      63  - Users
+      64  - Settings
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 2 lines
+      143  | Create/update/delete shipments | Yes | Yes | No | No |
+      144  | View stock ledger | Yes | Yes | Yes | Yes |
+      145  | Create/update/delete stock adjustments | Yes | No | No | No |
+      146 +| View stock valuation | Yes | No | No | No |                                           
+      147 +| Export stock valuation reports | Yes | No | No | No |                                 
+      148  | View reports | Yes | Yes | Yes | Yes |
+      149  | Export reports | Yes | Yes | Yes | Yes |
+      150  | Manage users | Yes | No | No | No |
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 64 lines, removed 1 line
+       961  - Any edit to historical stock-affecting records should create adjustment/reversal ledg
+            er entries and then recalculate stock.
+       962  - Use indexes on dates, product IDs, location IDs, supplier/customer IDs, status fields
+            , and source references for fast search/filter.
+       963  
+       964 -## 26. Resolved Confirmation Items                                                     
+       964 +## 26. Stock Valuation (Admin Only)                                                    
+       965  
+       966 +A completely separate Stock Valuation section, visible and exportable by admin users on
+           +ly. It shows the total worth of all products currently in stock, valued at actual purch
+           +ase rates.                                                                             
+       967 +                                                                                       
+       968 +### Valuation Rules (confirmed 2026-07-02)                                             
+       969 +                                                                                       
+       970 +- Costing method: **weighted average cost** in AED, maintained per product per location
+           +.                                                                                      
+       971 +- Value follows quantity through the stock buckets: purchase entry adds pending value, 
+           +collection moves value from pending to physical, shipments move value from physical to 
+           +in-transit to destination physical at carrying average cost.                           
+       972 +- Valuation scope: **physical + in-transit + pending** all count toward total worth, sh
+           +own separately per bucket with a combined total.                                       
+       973 +- Shipping costs are **excluded** from product worth; they remain visible on shipment r
+           +ecords only.                                                                           
+       974 +- Refunds/cancellations remove value based on the original purchase line AED rate.     
+       975 +- The AED value uses the exchange rate frozen at purchase entry time.                  
+       976 +- Negative stock lines show negative value and carry the standard mismatch highlight.  
+       977 +                                                                                       
+       978 +### Valuation Views                                                                    
+       979 +                                                                                       
+       980 +Summary view:                                                                          
+       981 +                                                                                       
+       982 +- total company stock worth (AED)                                                      
+       983 +- worth by location                                                                    
+       984 +- worth by bucket: physical, in-transit, pending                                       
+       985 +- worth by category                                                                    
+       986 +- top products by value                                                                
+       987 +                                                                                       
+       988 +Detail view (per product per location):                                                
+       989 +                                                                                       
+       990 +- product, category, brand, model, storage/specs                                       
+       991 +- location                                                                             
+       992 +- physical quantity, in-transit quantity, pending quantity                             
+       993 +- weighted average unit cost (AED)                                                     
+       994 +- physical value, in-transit value, pending value (AED)                                
+       995 +- total value (AED)                                                                    
+       996 +- last movement date                                                                   
+       997 +- mismatch/negative indicator                                                          
+       998 +                                                                                       
+       999 +Both views support the standard filters (location, product, category, date cutoff) and 
+           +export to Excel and PDF with only the filtered data. Exports follow the same clean, pro
+           +fessional PDF theme as other reports.                                                  
+      1000 +                                                                                       
+      1001 +## 27. UI Theme and Responsiveness                                                     
+      1002 +                                                                                       
+      1003 +### Theme                                                                              
+      1004 +                                                                                       
+      1005 +- Default theme: light, modern, professional.                                          
+      1006 +- Dark mode: a dedicated professional dark palette designed for readability and hierarc
+           +hy — not an automatic inversion of the light colors.                                   
+      1007 +- Users can switch theme manually; the preference is remembered per user. System prefer
+           +ence is respected on first visit.                                                      
+      1008 +- All components, charts, status colors, and warning/mismatch highlights must have desi
+           +gned values in both themes.                                                            
+      1009 +                                                                                       
+      1010 +### Responsiveness                                                                     
+      1011 +                                                                                       
+      1012 +The system must adapt cleanly across:                                                  
+      1013 +                                                                                       
+      1014 +- large desktop monitors                                                               
+      1015 +- small-screen laptops                                                                 
+      1016 +- iPads and similar tablets                                                            
+      1017 +- small tablets                                                                        
+      1018 +                                                                                       
+      1019 +Layouts, tables, forms, and dashboards must adapt to both large and small screens witho
+           +ut broken layouts or horizontal scrolling traps. Mobile phone support remains required 
+           +as previously specified.                                                               
+      1020 +                                                                                       
+      1021 +## 28. Business Time Zone                                                              
+      1022 +                                                                                       
+      1023 +- All timestamps are stored in UTC.                                                    
+      1024 +- The business time zone is **Dubai time (Asia/Dubai)** (confirmed 2026-07-02).        
+      1025 +- "Today" boundaries for dashboard cards, date filters, daily reports, and past-cutoff 
+           +snapshots are calculated in Dubai time for all users and locations.                    
+      1026 +                                                                                       
+      1027 +## 29. Resolved Confirmation Items                                                     
+      1028 +                                                                                       
+      1029  - Shipment permissions (confirmed 2026-07-02): admin and purchase users can create, upd
+            ate, and delete shipments and record shipment receiving. Sale users and viewers have vi
+            ew-only access to shipments. No separate shipment/operator role is introduced.
+
+⏺ Note the old §26 became §29; sections 1–25 keep their numbers so existing cross-references stay valid.
+  Now a pointer in the Reports section:
+
+⏺ Update(docs/requirements/SYSTEM_SPEC.md)
+  ⎿  Added 2 lines
+      561  
+      562  PDF exports should use a clean, modern, light professional theme.
+      563  
+      564 +Stock valuation reports (summary and detail) are defined in section 26 and are admin-onl
+          +y.                                                                                      
+      565 +                                                                                        
+      566  ### Proposed Reports and Columns
+      567  
+      568  #### Current Stock by Location
+
+⏺ 2. SRS.md — new functional requirements, modules, reports, NFRs, acceptance criteria:
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 2 lines
+      82  - sales entry for Dubai and Karachi
+      83  - stock adjustment
+      84  - stock ledger
+      85 +- admin-only stock valuation with exportable summary and detail reports                  
+      86  - dashboard
+      87  - reports and exports
+      88  - file uploads
+      89  - audit activity
+      90 +- light and dark professional UI themes                                                  
+      91  
+      92  ### 2.3 User Classes
+      93  
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 1 line
+      151  - Party-wise Sale Records
+      152  - Stock Ledger
+      153  - Stock Adjustments
+      154 +- Stock Valuation (admin only)                                                          
+      155  - Reports
+      156  - Users
+      157  - Settings
+
+⏺ Now the new FR sections (appended after §4.19 Audit Activity, before §5):
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 62 lines
+      808  - date/time
+      809  - IP/device/session where available
+      810  
+      811 +### 4.20 Stock Valuation                                                                
+      812 +                                                                                        
+      813 +#### FR-115 Stock Valuation Section                                                     
+      814 +                                                                                        
+      815 +The system shall provide a separate Stock Valuation section showing the total worth of a
+          +ll products currently in stock, valued at actual purchase rates.                        
+      816 +                                                                                        
+      817 +#### FR-116 Admin-Only Access                                                           
+      818 +                                                                                        
+      819 +The Stock Valuation section and its exports shall be visible to admin users only.       
+      820 +                                                                                        
+      821 +#### FR-117 Weighted Average Costing                                                    
+      822 +                                                                                        
+      823 +Stock worth shall be calculated using weighted average cost in AED, maintained per produ
+          +ct per location, based on the AED purchase values frozen at purchase entry.             
+      824 +                                                                                        
+      825 +#### FR-118 Valuation Scope                                                             
+      826 +                                                                                        
+      827 +Total worth shall include physical, in-transit, and pending stock, with each bucket show
+          +n separately and a combined total.                                                      
+      828 +                                                                                        
+      829 +#### FR-119 Shipping Cost Exclusion                                                     
+      830 +                                                                                        
+      831 +Shipping costs shall not be included in stock worth.                                    
+      832 +                                                                                        
+      833 +#### FR-120 Valuation Summary View                                                      
+      834 +                                                                                        
+      835 +The valuation summary shall show total company worth, worth by location, worth by bucket
+          +, and worth by category.                                                                
+      836 +                                                                                        
+      837 +#### FR-121 Valuation Detail View                                                       
+      838 +                                                                                        
+      839 +The valuation detail shall show, per product per location: quantities per bucket, weight
+          +ed average unit cost, value per bucket, and total value in AED.                         
+      840 +                                                                                        
+      841 +#### FR-122 Valuation Refund Reversal                                                   
+      842 +                                                                                        
+      843 +Refunds/cancellations shall remove value based on the original purchase line AED rate.  
+      844 +                                                                                        
+      845 +#### FR-123 Valuation Export                                                            
+      846 +                                                                                        
+      847 +Valuation summary and detail shall be exportable to Excel and PDF, containing only the f
+          +iltered data.                                                                           
+      848 +                                                                                        
+      849 +### 4.21 UI Theme                                                                       
+      850 +                                                                                        
+      851 +#### FR-124 Default Light Theme                                                         
+      852 +                                                                                        
+      853 +The system shall use a light, modern, professional theme by default.                    
+      854 +                                                                                        
+      855 +#### FR-125 Professional Dark Mode                                                      
+      856 +                                                                                        
+      857 +The system shall provide a dedicated professional dark mode with a designed dark palette
+          +, not an inversion of the light theme colors.                                           
+      858 +                                                                                        
+      859 +#### FR-126 Theme Switching                                                             
+      860 +                                                                                        
+      861 +Users shall be able to switch between light and dark mode, and the system shall remember
+          + each user's preference.                                                                
+      862 +                                                                                        
+      863 +#### FR-127 Themed Components                                                           
+      864 +                                                                                        
+      865 +All components, charts, status colors, and warning/mismatch highlights shall have design
+          +ed values in both themes.                                                               
+      866 +                                                                                        
+      867 +### 4.22 Business Time Zone                                                             
+      868 +                                                                                        
+      869 +#### FR-128 Dubai Business Time                                                         
+      870 +                                                                                        
+      871 +All "today" calculations, date filters, daily report boundaries, and past-cutoff snapsho
+          +ts shall use Dubai time (Asia/Dubai) for all users and locations. Timestamps shall be st
+          +ored in UTC.                                                                            
+      872 +                                                                                        
+      873  ## 5. Report Requirements
+      874  
+      875  The system shall provide at least the following reports:
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 2 lines
+      890  - Refund/Cancellation Report
+      891  - Stock Ledger Report
+      892  - Stock Adjustment Report
+      893 +- Stock Valuation Summary (admin only)                                                  
+      894 +- Stock Valuation Detail (admin only)                                                   
+      895  - User Activity Report
+      896  - Upload/File Report
+      897  
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 3 lines, removed 1 line
+      1017  
+      1018  ### 7.6 Responsiveness
+      1019  
+      1020 -The system shall be primarily designed for desktop/laptop use but must be responsive en
+           -ough to open and operate on mobile phones.                                             
+      1020 +The system shall be primarily designed for desktop/laptop use and must adapt cleanly to
+           + large desktop monitors, small-screen laptops, iPads and similar tablets, and small tab
+           +lets, without broken layouts or horizontal scrolling traps.                            
+      1021  
+      1022 +The system must also remain responsive enough to open and operate on mobile phones.    
+      1023 +                                                                                       
+      1024  ### 7.7 Maintainability
+      1025  
+      1026  The system should be modular so future locations, currencies, GST rules, companies, and
+             reports can be added without major redesign.
+
+⏺ Update(docs/requirements/SRS.md)
+  ⎿  Added 3 lines
+      1147  - uploaded invoice files can be stored and downloaded
+      1148  - negative stock and over-receiving warnings work correctly
+      1149  - stock can be recalculated from the ledger after edits
+      1150 +- admin can view and export stock valuation at weighted average purchase cost, and valu
+           +ation reconciles with the stock ledger                                                 
+      1151 +- light and dark themes both render all pages professionally, and theme preference is r
+           +emembered                                                                              
+      1152 +- pages work correctly on desktop, small laptop, iPad, and small tablet screen sizes   
+
+⏺ Update(docs/architecture/SYSTEM_DIAGRAMS.md)
+  ⎿  Added 1 line
+      35  - Receive shipments
+      36  - Create sales
+      37  - Perform stock adjustments
+      38 +- View stock valuation (admin only)                                                      
+      39  - View dashboard
+      40  - View reports
+      41  - Export reports
+
+⏺ Update(docs/architecture/SYSTEM_DIAGRAMS.md)
+  ⎿  Added 1 line
+      62          ReceiveShipments((Receive Shipments))
+      63          Sales((Create/Update/Delete Sales))
+      64          Adjustments((Stock Adjustments))
+      65 +        Valuation((View/Export Stock Valuation))                                         
+      66          Ledger((View Stock Ledger))
+      67          Reports((View Reports))
+      68          ExportReports((Export Reports))
+
+⏺ Update(docs/architecture/SYSTEM_DIAGRAMS.md)
+  ⎿  Added 1 line
+      84      Admin --> ReceiveShipments
+      85      Admin --> Sales
+      86      Admin --> Adjustments
+      87 +    Admin --> Valuation                                                                  
+      88      Admin --> Ledger
+      89      Admin --> Reports
+      90      Admin --> ExportReports
+
+⏺ Update(docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
+  ⎿  Added 18 lines, removed 1 line
+      550  - export reports to Excel or PDF
+      551  - check audit activity
+      552  
+      553 -## 25. Future Deployment Flow                                                           
+      553 +## 25. Admin Stock Valuation Flow                                                       
+      554  
+      555 +Admin users have a separate Stock Valuation section that other users cannot see.        
+      556 +                                                                                        
+      557 +It answers one question: how much is all the stock currently worth, based on what the bu
+          +siness actually paid for it.                                                            
+      558 +                                                                                        
+      559 +The valuation works like this:                                                          
+      560 +                                                                                        
+      561 +- Every product's worth is calculated from its real purchase rates in AED, using a runni
+          +ng weighted average per product per location.                                           
+      562 +- Stock that is on hand, stock in transit between locations, and stock that is purchased
+          + but not yet collected are all counted, each shown separately with a combined total.    
+      563 +- Shipping costs are not added to product worth.                                        
+      564 +- When a purchase is refunded or cancelled, the related worth is removed automatically. 
+      556 +                                                                                    
+      557 +It answers one question: how much is all the stock currently worth, based on what th
+          +e business actually paid for it.                                                    
+      558 +                                                                                    
+      559 +The valuation works like this:                                                      
+      560 +                                                                                    
+      561 +- Every product's worth is calculated from its real purchase rates in AED, using a r
+          +unning weighted average per product per location.                                   
+      562 +- Stock that is on hand, stock in transit between locations, and stock that is purch
+          +ased but not yet collected are all counted, each shown separately with a combined to
+          +tal.                                                                                
+      563 +- Shipping costs are not added to product worth.                                    
+      563 +- Shipping costs are not added to product worth.                                        
+      564 +- When a purchase is refunded or cancelled, the related worth is removed automatically. 
+      565 +                                                                                        
+      566 +The admin can view a summary (total worth, worth by location, worth by bucket, worth by 
+          +category) and a full detail list (every product at every location with quantities, avera
+          +ge cost, and value).                                                                    
+      567 +                                                                                        
+      568 +Both views can be filtered and exported to Excel or PDF, and the export contains exactly
+          + the filtered data.                                                                     
+      569 +                                                                                        
+      570 +## 26. Future Deployment Flow                                                           
+      571 +                                                                                        
+      572  The system will first be tested locally.
+      573  
+      574  After local testing and business confirmation, it can be deployed to AWS.
+
+⏺ 5. Requirements gathering log — Batch 10 entry:
+
+⏺ Update(docs/requirements/PROJECT_CONTEXT.md)
+  ⎿  Added 15 lines
+      706  - No separate shipment/operator role will be added.
+      707  - Reason: purchase users already own the inbound stock flow (purchase entry, collection,
+            refunds/cancellations), and shipments are the continuation of that same flow, so admin-
+           only would create a daily bottleneck without adding control.
+      708  
+      709 +### Batch 10 Requirements - Stock Valuation, UI Theme, Responsiveness, Time Zone (2026-0
+          +7-02)                                                                                   
+      710 +                                                                                        
+      711 +New requirements from the client:                                                       
+      712 +                                                                                        
+      713 +- Admin-only Stock Valuation: a completely separate section showing the total worth of a
+          +ll products currently in stock at actual purchase rates, with full detail and summary vi
+          +ews, exportable to PDF and Excel.                                                       
+      714 +- UI theme: light, modern, professional by default, plus a professional dark mode with a
+          + dedicated designed palette — not just inverted colors.                                 
+      715 +- Responsiveness: the system must adapt perfectly to large and small screens, including 
+          +iPads, small-screen laptops, and small tablets.                                         
+      716 +                                                                                        
+      717 +Decisions confirmed with the client:                                                    
+      718 +                                                                                        
+      719 +- Costing method for valuation: weighted average cost in AED per product per location.  
+      720 +- Valuation scope: physical + in-transit + pending stock all count toward total worth, s
+          +hown per bucket with a combined total.                                                  
+      721 +- Shipping costs are excluded from stock worth.                                         
+      722 +- Business time zone: Dubai time (Asia/Dubai) defines "today" for dashboards, date filte
+          +rs, and daily reports; timestamps stored in UTC. (Raised as a gap: locations span five t
+          +ime zones.)                                                                             
+      723 +                                                                                        
+      724  ### Documentation and Architecture Update
+      725  
+      726  - A root-level project context file is maintained at `PROJECT_CONTEXT.md` for future con
+           tinuation.
+
+⏺ API Error: Connection closed mid-response. The response above may be incomplete.
+
+✻ Churned for 22m 42s
+
+❯ continue where you left before my internet connection                                                   
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 4 lines
+      63  - Shipments track source stock, in-transit stock, destination receiving, partial receivin
+          g, and over-receiving warnings.
+      64  - GST report is product-line based and uses net quantity after refund/cancellation.
+      65  - All important user actions must be audited.
+      66 +- Admin-only Stock Valuation section: total worth of current stock at weighted average pu
+         +rchase cost (AED), covering physical + in-transit + pending buckets, shipping costs exclu
+         +ded, with summary and detail views exportable to Excel/PDF.                              
+      67 +- UI: light, modern, professional theme by default plus a dedicated professional dark mod
+         +e (designed palette, not inverted colors), user-switchable and remembered.               
+      68 +- Fully adaptive layouts for large desktops, small-screen laptops, iPads, and small table
+         +ts, in addition to mobile phone support.                                                 
+      69 +- Business time zone is Dubai (Asia/Dubai) for all "today" boundaries and daily reports; 
+         +timestamps stored in UTC.                                                                
+      70  
+      71  ## Roles
+      72  
+
+⏺ Update(PROJECT_CONTEXT.md)
+  ⎿  Added 3 lines
+       96  
+       97  ### 2026-07-02
+       98  
+       99 +- Added three new client requirements (Batch 10 in `docs/requirements/PROJECT_CONTEXT.md
+          +`): admin-only Stock Valuation section with exportable summary/detail reports, professio
+          +nal light + dark themes, and full responsiveness for iPads/small laptops/small tablets. 
+      100 +- Confirmed valuation decisions with the client: weighted average costing in AED per pro
+          +duct per location; physical + in-transit + pending all count toward total worth; shippin
+          +g costs excluded; business time zone is Dubai (raised as a requirements gap, now resolve
+          +d).                                                                                     
+      101 +- Updated for the new requirements: `docs/requirements/SRS.md` (FR-115…FR-128, modules, 
+          +reports list, §7.6, acceptance criteria), `docs/requirements/SYSTEM_SPEC.md` (navigation
+          +, permission matrix, new §26 Stock Valuation, §27 UI Theme and Responsiveness, §28 Busin
+          +ess Time Zone; Resolved Confirmation Items renumbered to §29), `docs/architecture/SYSTEM
+          +_DIAGRAMS.md` (use case diagram), `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` (
+          +new §25 Admin Stock Valuation Flow), and `docs/architecture/TECHNICAL_ARCHITECTURE.md` (
+          +valuation design, theming, responsive strategy, time zone).                             
+      102  - Created `docs/architecture/TECHNICAL_ARCHITECTURE.md`: monorepo layout (`src/backend`,
+            `src/frontend`), 11 Django apps with `inventory` owning the append-only stock ledger an
+           d a materialized `stock_balances` table, a single `post_event` posting service as the on
+           ly ledger writer, session-cookie auth behind a single nginx origin, DRF API with OpenAPI
+           -generated frontend client, Celery-based Excel/PDF exports, Docker Compose local environ
+           ment, testing strategy keyed to the event→ledger mapping table, and implementation phase
+           s M0–M8.
+      103  - Resolved the shipment permission open item: admin and purchase users can create, updat
+           e, and delete shipments and record shipment receiving; sale users and viewers are view-o
+           nly. No separate shipment/operator role is added.
+      104  - Updated for the shipment permission decision: `docs/requirements/SYSTEM_SPEC.md` (perm
+           ission matrix, section 6 note, section 26), `docs/requirements/SRS.md` (user classes, FR
+           -007, open items), `docs/requirements/PROJECT_CONTEXT.md` (Batch 8 permissions, new Batc
+           h 9), `docs/architecture/SYSTEM_DIAGRAMS.md` (use case diagram arrows, shipment sequence
+            actor), `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md` (roles, shipment flow, dai
+           ly flow), and root `PROJECT_CONTEXT.md`.
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 1 line, removed 1 line
+      131  
+      132  ### 5.3 Balances: derived, but materialized
+      133  
+      134 -`stock_balances (product, location, bucket, quantity)` is a materialized rollup of the l
+          -edger:                                                                                  
+      134 +`stock_balances (product, location, bucket, quantity, value_aed)` is a materialized roll
+          +up of the ledger:                                                                       
+      135  
+      136  - Updated **in the same transaction** as ledger inserts using `SELECT ... FOR UPDATE` on
+            the balance row (row-level locking serializes concurrent movements of the same product+
+           location).
+      137  - The ledger remains the source of truth: a `rebuild_stock_balances` management command
+           (also a Celery task) recomputes all balances from the full ledger and reports any drift.
+            Run after bulk edits and on a schedule as a consistency check.
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 10 lines
+      137  - The ledger remains the source of truth: a `rebuild_stock_balances` management command 
+           (also a Celery task) recomputes all balances from the full ledger and reports any drift.
+            Run after bulk edits and on a schedule as a consistency check.
+      138  - Dashboards and stock reports read `stock_balances`; the "past cutoff" dashboard (FR-09
+           6) aggregates the ledger directly with `txn_at <= cutoff`.
+      139  
+      140 +### 5.3.1 Stock valuation: value follows quantity                                       
+      141 +                                                                                        
+      142 +The admin-only Stock Valuation section (SYSTEM_SPEC §26, FR-115…FR-123) is driven by the
+          + same mechanism — no separate costing subsystem:                                        
+      143 +                                                                                        
+      144 +- Every ledger row that moves purchased stock carries its `aed_value` (frozen at purchas
+          +e entry). `stock_balances.value_aed` accumulates alongside `quantity` in the same transa
+          +ction, so **weighted average unit cost is simply `value_aed / quantity`** per product+lo
+          +cation+bucket.                                                                          
+      145 +- Value moves with quantity through the buckets: purchase entry adds PENDING value; coll
+          +ection moves it to PHYSICAL; shipping moves it to IN_TRANSIT at the source's carrying av
+          +erage and into destination PHYSICAL on receipt; sales and adjustments remove value at th
+          +e location's carrying average; refunds remove value at the original purchase line rate. 
+      146 +- Shipping costs never enter `value_aed` (decision: purchase rates only).               
+      147 +- Valuation summary/detail endpoints read `stock_balances` directly; `rebuild_stock_bala
+          +nces` reconciles values the same way it reconciles quantities, so valuation correctness 
+          +is covered by the same drift check.                                                     
+      148 +- Endpoints and exports live in `reports` behind an admin-only permission class; exports
+          + reuse the standard Celery Excel/PDF pipeline.                                          
+      149 +                                                                                        
+      150  ### 5.4 Posting service
+      151  
+      152  All writes flow through one narrow API in `inventory/services.py`:
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 16 lines, removed 1 line
+      194  - **Data layer**: TanStack Query against the generated OpenAPI client; server components
+            for initial loads, client components for interactive forms/tables.
+      195  - **UI kit**: Tailwind CSS + shadcn/ui. Shared building blocks: `DataTable` (search, fil
+           ters, sort, pagination, quick-totals header — every list page reuses it), `EntityForm` (
+           react-hook-form + zod schemas derived from API types), `WarningDialog` (negative stock /
+            over-receiving confirmations), status and mismatch-highlight badges.
+      196  - **Auth**: session cookie; a lightweight `/api/v1/auth/me` call gates routes and drives
+            role-based menu/action visibility (server remains the enforcement point).
+      197 -- Fully responsive; list pages collapse to card layouts on mobile.                      
+      197  
+      198 +### 9.1 Theming (FR-124…FR-127)                                                         
+      199 +                                                                                        
+      200 +- All colors are **semantic design tokens** (CSS variables: `--background`, `--surface`,
+          + `--primary`, `--warning`, `--mismatch`, chart series, …) following the shadcn/ui themin
+          +g model. Components never reference raw colors, only tokens.                            
+      201 +- Light theme is the default: clean, modern, professional.                              
+      202 +- Dark mode is a **separately designed token set** — elevated surfaces, adjusted saturat
+          +ion, and contrast-checked status/warning/mismatch colors — not an inversion. Charts and 
+          +badges get their own dark values.                                                       
+      203 +- `next-themes` manages switching: system preference on first visit, manual toggle, pref
+          +erence persisted per user (profile field, so it follows the user across devices).       
+      204 +- Both themes are enforced in review: every new page/component ships with both token set
+          +s exercised (Playwright screenshots run in both themes).                                
+      205 +                                                                                        
+      206 +### 9.2 Responsiveness (FR-122 SRS §7.6)                                                
+      207 +                                                                                        
+      208 +- Target viewports, tested explicitly: large desktop (≥1440), small laptop (~1280×800), 
+          +iPad landscape/portrait (1024/768), small tablets (~600), mobile phones (≥360).         
+      209 +- The app shell adapts: full sidebar on desktop, collapsible rail on tablets, drawer on 
+          +small screens.                                                                          
+      210 +- `DataTable` degrades by priority: column sets per breakpoint (declared per page), hori
+          +zontal scroll only as a last resort inside the table container — never page-level horizo
+          +ntal scroll.                                                                            
+      211 +- Forms use a responsive grid (multi-column on desktop, single column on tablets/phones)
+          +; dashboards reflow card grids.                                                         
+      212 +- Playwright smoke flows run against the desktop, iPad, and small-tablet viewports.     
+      213 +                                                                                        
+      214  ## 10. Files and Storage
+      215  
+      216  - `attachments.FileAttachment` stores metadata + storage key, generic-linked to purchase
+           s/sales/exports.
+
+⏺ API Error: Response stalled mid-stream. The response above may be incomplete.
+
+✻ Sautéed for 6m 11s
+
+❯ continue from where were you left before my internet connection cuts                                    
+
+⏺ Continuing with the remaining TECHNICAL_ARCHITECTURE.md edits — time zone handling, new ADR rows, and
+  phase scope:
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 6 lines
+      211  - Forms use a responsive grid (multi-column on desktop, single column on tablets/phones)
+           ; dashboards reflow card grids.
+      212  - Playwright smoke flows run against the desktop, iPad, and small-tablet viewports.
+      213  
+      214 +## 9.3 Time Handling (FR-128)                                                           
+      215 +                                                                                        
+      216 +- Postgres and Django store all timestamps in UTC (`USE_TZ = True`).                    
+      217 +- A single `BUSINESS_TZ = Asia/Dubai` constant drives every "today" boundary: dashboard 
+          +cards, default date-filter ranges, daily report grouping, and past-cutoff snapshots. Hel
+          +pers `business_today()` / `business_day_bounds(date)` are the only way services and repo
+          +rts compute day windows — no ad-hoc `date.today()` calls.                               
+      218 +- The frontend displays dates in Dubai time via the generated client's serializers; user
+          +-entered dates (purchase date, sale date) are calendar dates, stored as `DATE` and unaff
+          +ected by time zones.                                                                    
+      219 +                                                                                        
+      220  ## 10. Files and Storage
+      221  
+      222  - `attachments.FileAttachment` stores metadata + storage key, generic-linked to purchase
+           s/sales/exports.
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 4 lines
+      251  | 6 | Explicit in-transaction audit writes (not signals) | Captures business intent and 
+           before/after reliably, including bulk paths |
+      252  | 7 | Values frozen at entry (AED conversion, GST) | Historical records must not change 
+           when rates change; refunds reverse the frozen values |
+      253  | 8 | OpenAPI-generated typed frontend client | Backend/frontend contracts enforced at b
+           uild time |
+      254 +| 9 | Valuation via `value_aed` on `stock_balances` (value follows quantity) | Weighted 
+          +average cost falls out of the existing ledger/balance mechanism — no separate costing su
+          +bsystem to drift; reconciled by the same rebuild check |                                
+      255 +| 10 | Stock valuation admin-only at the permission layer | Client requirement; enforced
+          + server-side, not just hidden in the UI |                                               
+      256 +| 11 | Semantic color tokens with separately designed light/dark palettes | Professional
+          + dark mode (not inversion) becomes a token-set swap; both themes testable by screenshot 
+          +|                                                                                       
+      257 +| 12 | Single business time zone (Asia/Dubai), UTC storage | Locations span five time zo
+          +nes; one authoritative "today" keeps dashboards and daily reports unambiguous |         
+      258  
+      259  ## 15. Implementation Phases
+      260  
+
+⏺ Update(docs/architecture/TECHNICAL_ARCHITECTURE.md)
+  ⎿  Added 1 line, removed 1 line
+      268  | M3 | Purchase refunds/cancellations | Partial line refunds reverse stock/AED/GST; orig
+           inals traceable |
+      269  | M4 | Shipments + receiving (incl. Dubai→Karachi) | Partial/over-receiving, cancellatio
+           n reversals, in-transit tracking |
+      270  | M5 | Sales + stock adjustments | Negative-stock confirmation flow; adjustments audited
+            |
+      271 -| M6 | Dashboard + reports + Excel/PDF exports (Celery) | All SRS §5 reports filterable 
+          -and exportable; past-cutoff dashboard |                                                 
+      271 +| M6 | Dashboard + reports + Excel/PDF exports (Celery) + admin stock valuation | All SR
+          +S §5 reports filterable and exportable; past-cutoff dashboard; valuation reconciles with
+          + ledger |                                                                               
+      272  | M7 | Hardening: audit review, mismatch highlighting, responsive pass, seed data, accep
+           tance test run | SRS §12 acceptance criteria pass locally |
+      273  | M8 | AWS deployment (EC2 + S3), backups | Production instance live; backup job running
+            |
+
+⏺ Fixing a heading level slip (9.3 should be a subsection):
+
+⏺ API Error: Connection closed mid-response. The response above may be incomplete.
+
+✻ Cooked for 4m 11s
+
+❯ continue from where were you left before my internet connection was interrupted                         
+
+✻ Unable to connect to API (ConnectionRefused) · Retrying in 0s · attempt 2/10
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ accept edits on (shift+tab to cycle) · esc to interrupt · ← for agents
+
+

@@ -82,10 +82,12 @@ The system will provide:
 - sales entry for Dubai and Karachi
 - stock adjustment
 - stock ledger
+- admin-only stock valuation with exportable summary and detail reports
 - dashboard
 - reports and exports
 - file uploads
 - audit activity
+- light and dark professional UI themes
 
 ### 2.3 User Classes
 
@@ -149,6 +151,7 @@ The system must include the following main navigation pages:
 - Party-wise Sale Records
 - Stock Ledger
 - Stock Adjustments
+- Stock Valuation (admin only)
 - Reports
 - Users
 - Settings
@@ -805,6 +808,68 @@ Audit records shall include:
 - date/time
 - IP/device/session where available
 
+### 4.20 Stock Valuation
+
+#### FR-115 Stock Valuation Section
+
+The system shall provide a separate Stock Valuation section showing the total worth of all products currently in stock, valued at actual purchase rates.
+
+#### FR-116 Admin-Only Access
+
+The Stock Valuation section and its exports shall be visible to admin users only.
+
+#### FR-117 Weighted Average Costing
+
+Stock worth shall be calculated using weighted average cost in AED, maintained per product per location, based on the AED purchase values frozen at purchase entry.
+
+#### FR-118 Valuation Scope
+
+Total worth shall include physical, in-transit, and pending stock, with each bucket shown separately and a combined total.
+
+#### FR-119 Shipping Cost Exclusion
+
+Shipping costs shall not be included in stock worth.
+
+#### FR-120 Valuation Summary View
+
+The valuation summary shall show total company worth, worth by location, worth by bucket, and worth by category.
+
+#### FR-121 Valuation Detail View
+
+The valuation detail shall show, per product per location: quantities per bucket, weighted average unit cost, value per bucket, and total value in AED.
+
+#### FR-122 Valuation Refund Reversal
+
+Refunds/cancellations shall remove value based on the original purchase line AED rate.
+
+#### FR-123 Valuation Export
+
+Valuation summary and detail shall be exportable to Excel and PDF, containing only the filtered data.
+
+### 4.21 UI Theme
+
+#### FR-124 Default Light Theme
+
+The system shall use a light, modern, professional theme by default.
+
+#### FR-125 Professional Dark Mode
+
+The system shall provide a dedicated professional dark mode with a designed dark palette, not an inversion of the light theme colors.
+
+#### FR-126 Theme Switching
+
+Users shall be able to switch between light and dark mode, and the system shall remember each user's preference.
+
+#### FR-127 Themed Components
+
+All components, charts, status colors, and warning/mismatch highlights shall have designed values in both themes.
+
+### 4.22 Business Time Zone
+
+#### FR-128 Dubai Business Time
+
+All "today" calculations, date filters, daily report boundaries, and past-cutoff snapshots shall use Dubai time (Asia/Dubai) for all users and locations. Timestamps shall be stored in UTC.
+
 ## 5. Report Requirements
 
 The system shall provide at least the following reports:
@@ -825,6 +890,8 @@ The system shall provide at least the following reports:
 - Refund/Cancellation Report
 - Stock Ledger Report
 - Stock Adjustment Report
+- Stock Valuation Summary (admin only)
+- Stock Valuation Detail (admin only)
 - User Activity Report
 - Upload/File Report
 
@@ -950,7 +1017,9 @@ The system shall preserve history for stock-affecting actions.
 
 ### 7.6 Responsiveness
 
-The system shall be primarily designed for desktop/laptop use but must be responsive enough to open and operate on mobile phones.
+The system shall be primarily designed for desktop/laptop use and must adapt cleanly to large desktop monitors, small-screen laptops, iPads and similar tablets, and small tablets, without broken layouts or horizontal scrolling traps.
+
+The system must also remain responsive enough to open and operate on mobile phones.
 
 ### 7.7 Maintainability
 
@@ -1078,3 +1147,6 @@ The system will be considered acceptable when:
 - uploaded invoice files can be stored and downloaded
 - negative stock and over-receiving warnings work correctly
 - stock can be recalculated from the ledger after edits
+- admin can view and export stock valuation at weighted average purchase cost, and valuation reconciles with the stock ledger
+- light and dark themes both render all pages professionally, and theme preference is remembered
+- pages work correctly on desktop, small laptop, iPad, and small tablet screen sizes

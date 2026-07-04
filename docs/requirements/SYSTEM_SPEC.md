@@ -58,6 +58,7 @@ Required main menu pages:
 - Party-wise Sale Records
 - Stock Ledger
 - Stock Adjustments
+- Stock Valuation (admin only)
 - Reports
 - Users
 - Settings
@@ -142,6 +143,8 @@ Required main menu pages:
 | Create/update/delete shipments | Yes | Yes | No | No |
 | View stock ledger | Yes | Yes | Yes | Yes |
 | Create/update/delete stock adjustments | Yes | No | No | No |
+| View stock valuation | Yes | No | No | No |
+| Export stock valuation reports | Yes | No | No | No |
 | View reports | Yes | Yes | Yes | Yes |
 | Export reports | Yes | Yes | Yes | Yes |
 | Manage users | Yes | No | No | No |
@@ -558,6 +561,8 @@ Exports:
 
 PDF exports should use a clean, modern, light professional theme.
 
+Stock valuation reports (summary and detail) are defined in section 26 and are admin-only.
+
 ### Proposed Reports and Columns
 
 #### Current Stock by Location
@@ -958,6 +963,69 @@ Future-ready fields:
 - Any edit to historical stock-affecting records should create adjustment/reversal ledger entries and then recalculate stock.
 - Use indexes on dates, product IDs, location IDs, supplier/customer IDs, status fields, and source references for fast search/filter.
 
-## 26. Resolved Confirmation Items
+## 26. Stock Valuation (Admin Only)
+
+A completely separate Stock Valuation section, visible and exportable by admin users only. It shows the total worth of all products currently in stock, valued at actual purchase rates.
+
+### Valuation Rules (confirmed 2026-07-02)
+
+- Costing method: **weighted average cost** in AED, maintained per product per location.
+- Value follows quantity through the stock buckets: purchase entry adds pending value, collection moves value from pending to physical, shipments move value from physical to in-transit to destination physical at carrying average cost.
+- Valuation scope: **physical + in-transit + pending** all count toward total worth, shown separately per bucket with a combined total.
+- Shipping costs are **excluded** from product worth; they remain visible on shipment records only.
+- Refunds/cancellations remove value based on the original purchase line AED rate.
+- The AED value uses the exchange rate frozen at purchase entry time.
+- Negative stock lines show negative value and carry the standard mismatch highlight.
+
+### Valuation Views
+
+Summary view:
+
+- total company stock worth (AED)
+- worth by location
+- worth by bucket: physical, in-transit, pending
+- worth by category
+- top products by value
+
+Detail view (per product per location):
+
+- product, category, brand, model, storage/specs
+- location
+- physical quantity, in-transit quantity, pending quantity
+- weighted average unit cost (AED)
+- physical value, in-transit value, pending value (AED)
+- total value (AED)
+- last movement date
+- mismatch/negative indicator
+
+Both views support the standard filters (location, product, category, date cutoff) and export to Excel and PDF with only the filtered data. Exports follow the same clean, professional PDF theme as other reports.
+
+## 27. UI Theme and Responsiveness
+
+### Theme
+
+- Default theme: light, modern, professional.
+- Dark mode: a dedicated professional dark palette designed for readability and hierarchy — not an automatic inversion of the light colors.
+- Users can switch theme manually; the preference is remembered per user. System preference is respected on first visit.
+- All components, charts, status colors, and warning/mismatch highlights must have designed values in both themes.
+
+### Responsiveness
+
+The system must adapt cleanly across:
+
+- large desktop monitors
+- small-screen laptops
+- iPads and similar tablets
+- small tablets
+
+Layouts, tables, forms, and dashboards must adapt to both large and small screens without broken layouts or horizontal scrolling traps. Mobile phone support remains required as previously specified.
+
+## 28. Business Time Zone
+
+- All timestamps are stored in UTC.
+- The business time zone is **Dubai time (Asia/Dubai)** (confirmed 2026-07-02).
+- "Today" boundaries for dashboard cards, date filters, daily reports, and past-cutoff snapshots are calculated in Dubai time for all users and locations.
+
+## 29. Resolved Confirmation Items
 
 - Shipment permissions (confirmed 2026-07-02): admin and purchase users can create, update, and delete shipments and record shipment receiving. Sale users and viewers have view-only access to shipments. No separate shipment/operator role is introduced.

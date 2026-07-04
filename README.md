@@ -29,6 +29,7 @@ This repository contains the planning documents, original workbook reference, an
 - [Software Requirements Specification](docs/requirements/SRS.md)
 - [Non-Technical Execution Flow](docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
 - [System Diagrams](docs/architecture/SYSTEM_DIAGRAMS.md)
+- [Technical Architecture](docs/architecture/TECHNICAL_ARCHITECTURE.md)
 
 Diagram PDF exports are stored in:
 

@@ -706,6 +706,21 @@ The open shipment permission question is resolved:
 - No separate shipment/operator role will be added.
 - Reason: purchase users already own the inbound stock flow (purchase entry, collection, refunds/cancellations), and shipments are the continuation of that same flow, so admin-only would create a daily bottleneck without adding control.
 
+### Batch 10 Requirements - Stock Valuation, UI Theme, Responsiveness, Time Zone (2026-07-02)
+
+New requirements from the client:
+
+- Admin-only Stock Valuation: a completely separate section showing the total worth of all products currently in stock at actual purchase rates, with full detail and summary views, exportable to PDF and Excel.
+- UI theme: light, modern, professional by default, plus a professional dark mode with a dedicated designed palette — not just inverted colors.
+- Responsiveness: the system must adapt perfectly to large and small screens, including iPads, small-screen laptops, and small tablets.
+
+Decisions confirmed with the client:
+
+- Costing method for valuation: weighted average cost in AED per product per location.
+- Valuation scope: physical + in-transit + pending stock all count toward total worth, shown per bucket with a combined total.
+- Shipping costs are excluded from stock worth.
+- Business time zone: Dubai time (Asia/Dubai) defines "today" for dashboards, date filters, and daily reports; timestamps stored in UTC. (Raised as a gap: locations span five time zones.)
+
 ### Documentation and Architecture Update
 
 - A root-level project context file is maintained at `PROJECT_CONTEXT.md` for future continuation.
