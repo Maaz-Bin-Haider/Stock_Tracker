@@ -8,7 +8,8 @@ services:
       POSTGRES_USER: stock_tracker
       POSTGRES_PASSWORD: stock_tracker
     ports:
-      - "5432:5432"
+      # 5433 on the host: avoids colliding with a natively installed Postgres.
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

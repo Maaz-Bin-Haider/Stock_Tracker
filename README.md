@@ -43,15 +43,18 @@ The original workbook reference is stored at:
 
 ## Development
 
-Phase M0 scaffolding is in place: Django backend (`src/backend`), Next.js frontend (`src/frontend`), and a Docker Compose environment (`deployment/`).
+Django backend (`src/backend`), Next.js frontend (`src/frontend`), and a Docker Compose environment (`deployment/`).
 
 Run the full stack (requires Docker):
 
 ```bash
 make up        # docker compose up --build; app served at http://localhost:8080
+make seed      # load demo master data + dev admin user (admin/admin123, DEBUG only)
 make down      # stop the stack
 make logs      # follow container logs
 ```
+
+Compose publishes Postgres on host port **5433** (avoiding any natively installed Postgres on 5432); `make test` points pytest at it automatically.
 
 nginx serves everything from one origin: `/` → Next.js, `/api` and `/admin` → Django, `/media` → dev uploads.
 
@@ -68,4 +71,4 @@ CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, 
 
 ## Current Status
 
-Requirements and planning documents are complete; phase M0 (repo scaffolding) is done. Next phase is M1: accounts, master data, products, and the audit foundation (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
+Phases M0 (scaffolding) and M1 (auth + role matrix, master data, products, audit foundation) are done. Next phase is M2: the stock ledger core, purchases, and purchase collection (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).

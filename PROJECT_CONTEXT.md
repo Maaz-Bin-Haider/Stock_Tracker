@@ -104,6 +104,15 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ### 2026-07-04
 
+- Completed phase M1 (accounts, master data, products, audit foundation), all verified end-to-end through nginx:
+  - Auth: session login/logout/me endpoints (`/api/v1/auth/…`); login, logout, and failed-login attempts are audited via Django auth signals; `me` guarantees the CSRF cookie for the SPA.
+  - Role matrix: `apps/accounts/permissions.py` holds the static `ROLE_MATRIX` mirroring SYSTEM_SPEC §6; a shared `ModulePermission` class enforces read-for-all / writes-per-role; users endpoint is admin-only, users are disabled rather than deleted. Interpretation recorded: suppliers are writable by admin + purchase users, customers by admin + sale users (per the use-case diagram; the §6 matrix doesn't list them explicitly).
+  - Master data: models + audited CRUD APIs for categories, locations (behavior flags: `can_purchase`, `is_sales_location`, `region_group`, `gst_region`), currencies, exchange rates, GST rates, suppliers, customers.
+  - Products: product master with case-insensitive uniqueness on (name, storage/specs) via functional unique constraint plus a friendly serializer validation (FR-018/FR-019).
+  - Audit foundation: append-only `AuditLog`, request-context middleware (contextvar), explicit `record_audit` service, `AuditedModelViewSet` base that snapshots before/after on every write; read-only audit API visible to all roles (FR-113).
+  - Seed command (`manage.py seed`, `make seed`): 7 locations, 5 currencies, AU/NZ GST rates, sample exchange rates, categories, and a DEBUG-only dev admin (admin/admin123).
+  - Frontend: login page, authenticated app shell with role-aware sidebar, generic CRUD component, pages for products/suppliers/customers/users/audit and settings pages (categories, locations, currencies, exchange rates, GST rates) driven by one dynamic route.
+  - Tests: 46 passing (role matrix per endpoint per role, product uniqueness, audit snapshots, auth flow). Compose Postgres now publishes on host port 5433 to avoid colliding with a natively installed Postgres; `make test` sets `POSTGRES_PORT=5433`.
 - Deleted the recovered terminal transcript (`Terminal Saved Output.txt`) after reconciling its contents.
 - Completed phase M0 scaffolding per `TECHNICAL_ARCHITECTURE.md` §15: Django backend (`src/backend`) with the 11 planned apps, split settings (base/dev/prod), custom `accounts.User` with role field, core model mixins (timestamps, company scope, soft delete), business-time helpers (`apps/core/time.py`), Celery wiring, DRF + OpenAPI schema endpoints, and a health endpoint; Next.js/TypeScript/Tailwind frontend (`src/frontend`); Docker Compose environment (`deployment/docker-compose.yml`) with postgres, redis, backend, celery worker, frontend, and nginx single-origin proxy on `http://localhost:8080`; root `Makefile`, pytest config, first test (`tests/backend/test_health.py`), and GitHub Actions CI (ruff + pytest with Postgres, eslint + tsc + next build).
 - Updated `README.md` (development commands, current status), `CLAUDE.md` (project state and commands), and `.gitignore` for the new stack.
@@ -151,4 +160,14 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-Begin phase M1: `accounts` (auth endpoints, role permission classes), `masterdata` (locations, currencies, exchange rates, GST rates, categories, suppliers, customers), `products` (product master with case-insensitive uniqueness), and the audit foundation.
+**TODO (next session): Phase M2 — inventory core + purchases + collection.** M0 and M1 are committed and verified; M2 has not been started. Per `TECHNICAL_ARCHITECTURE.md` §5 and §15:
+
+- [ ] `inventory` app: append-only `stock_ledger` table (never update/delete rows; reversals reference originals).
+- [ ] Materialized `stock_balances` (product × location × bucket, `quantity` + `value_aed`) updated in the same transaction with `SELECT ... FOR UPDATE` row locking.
+- [ ] Single `post_event` posting service in `inventory/services.py` — the only ledger writer; enforces transactions, quantity validation, `confirm_negative` flag, and in-transaction audit writes.
+- [ ] `rebuild_stock_balances` management command / Celery task as the drift check.
+- [ ] Purchases: invoice + lines (currency, exchange rate frozen at entry, GST rate/amount, computed AED values); statuses/pending always computed, never stored as user input (SYSTEM_SPEC §8).
+- [ ] Purchase collection as an explicit sub-resource endpoint posting −PENDING/+PHYSICAL per the §5.2 event→ledger mapping table.
+- [ ] Tests keyed to the §5.2 mapping table rows, including partial collection and the balance-reconciliation test.
+
+Deferred small items from M1 (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 table list — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9 — current lean fetch wrapper works and the schema endpoint is already live).

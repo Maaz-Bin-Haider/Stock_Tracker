@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project State
 
-The SwissTech Stock Tracker is a web-based inventory system replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). Phase M0 scaffolding exists: Django backend under `src/backend` (11 apps under `apps/`, settings split in `config/settings/`), Next.js frontend under `src/frontend`, Docker Compose + nginx under `deployment/`. Business logic has not started; phases are tracked in `TECHNICAL_ARCHITECTURE.md` §15.
+The SwissTech Stock Tracker is a web-based inventory system replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). Django backend under `src/backend` (11 apps under `apps/`, settings split in `config/settings/`), Next.js frontend under `src/frontend`, Docker Compose + nginx under `deployment/`. Phases M0–M1 are done (auth + role matrix in `apps/accounts/permissions.py`, audited master-data/product CRUD via `apps/core/viewsets.py`, audit foundation in `apps/audits/`); next is M2 (stock ledger). Phases are tracked in `TECHNICAL_ARCHITECTURE.md` §15. Dev login after `make seed`: admin/admin123 (DEBUG only).
 
 Commands (root `Makefile`): `make up` (full stack via Docker at `http://localhost:8080`), `make venv` (host venv for backend tooling), `make test` (pytest; config in root `pytest.ini`, tests under `tests/` mirroring `src/`), `make lint` (ruff + eslint), `make typecheck` (tsc).
 
