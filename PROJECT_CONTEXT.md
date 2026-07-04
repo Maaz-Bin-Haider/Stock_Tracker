@@ -15,14 +15,19 @@ This root-level context file is maintained so future work can continue from the 
 Stock_Tracker/
 ├── README.md
 ├── PROJECT_CONTEXT.md
+├── Makefile                  # up/down/logs/venv/test/lint/typecheck
+├── pytest.ini
 ├── data/
 │   ├── source/
 │   │   └── stock_tracker_original.xlsx
 │   └── exports/
 ├── deployment/
+│   ├── docker-compose.yml    # postgres, redis, backend, worker, frontend, nginx
+│   └── nginx/default.conf
 ├── docs/
 │   ├── architecture/
-│   │   └── SYSTEM_DIAGRAMS.md
+│   │   ├── TECHNICAL_ARCHITECTURE.md
+│   │   ├── SYSTEM_DIAGRAMS.md
 │   │   └── diagrams/pdf/
 │   ├── business-flow/
 │   │   └── EXECUTION_FLOW_NON_TECHNICAL.md
@@ -32,7 +37,10 @@ Stock_Tracker/
 │       └── SRS.md
 ├── scripts/
 ├── src/
+│   ├── backend/              # Django + DRF (config/, apps/ with 11 apps)
+│   └── frontend/             # Next.js + TypeScript + Tailwind
 └── tests/
+    └── backend/              # pytest tests mirroring src/backend
 ```
 
 ## Key Documents
@@ -96,6 +104,9 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ### 2026-07-04
 
+- Deleted the recovered terminal transcript (`Terminal Saved Output.txt`) after reconciling its contents.
+- Completed phase M0 scaffolding per `TECHNICAL_ARCHITECTURE.md` §15: Django backend (`src/backend`) with the 11 planned apps, split settings (base/dev/prod), custom `accounts.User` with role field, core model mixins (timestamps, company scope, soft delete), business-time helpers (`apps/core/time.py`), Celery wiring, DRF + OpenAPI schema endpoints, and a health endpoint; Next.js/TypeScript/Tailwind frontend (`src/frontend`); Docker Compose environment (`deployment/docker-compose.yml`) with postgres, redis, backend, celery worker, frontend, and nginx single-origin proxy on `http://localhost:8080`; root `Makefile`, pytest config, first test (`tests/backend/test_health.py`), and GitHub Actions CI (ruff + pytest with Postgres, eslint + tsc + next build).
+- Updated `README.md` (development commands, current status), `CLAUDE.md` (project state and commands), and `.gitignore` for the new stack.
 - Completed the finishing touches left over from the interrupted 2026-07-02 session (the session was cut off by a connection loss; its state was recovered from a saved terminal transcript): fixed the `9.3 Time Handling` heading level in `docs/architecture/TECHNICAL_ARCHITECTURE.md` so it sits under section 9 (Frontend), and corrected the section 9.2 responsiveness cross-reference from "FR-122" (which is Valuation Refund Reversal) to plain "SRS §7.6".
 - Updated `CLAUDE.md` core domain rules with the Batch 10 requirements (admin-only stock valuation at weighted average cost, Dubai business time zone, light/dark themes, and tablet/laptop responsiveness), which the interrupted session had not reached.
 - Verified all Batch 9/10 changes landed consistently across `docs/requirements/SRS.md`, `docs/requirements/SYSTEM_SPEC.md`, `docs/requirements/PROJECT_CONTEXT.md`, `docs/architecture/SYSTEM_DIAGRAMS.md`, `docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md`, and root `PROJECT_CONTEXT.md`; no duplicated or truncated content was found.
@@ -140,4 +151,4 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-Review `docs/architecture/TECHNICAL_ARCHITECTURE.md`, then begin phase M0: scaffold the Django project and apps, the Next.js app, and the Docker Compose local environment.
+Begin phase M1: `accounts` (auth endpoints, role permission classes), `masterdata` (locations, currencies, exchange rates, GST rates, categories, suppliers, customers), `products` (product master with case-insensitive uniqueness), and the audit foundation.

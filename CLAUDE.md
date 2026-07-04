@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project State
 
-This is the planning/documentation phase of the SwissTech Stock Tracker — a web-based inventory system replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). **No application code exists yet**; `src/`, `tests/`, `scripts/`, and `deployment/` are empty placeholders. There are no build, lint, or test commands until implementation starts.
+The SwissTech Stock Tracker is a web-based inventory system replacing a spreadsheet workflow (`data/source/stock_tracker_original.xlsx`). Phase M0 scaffolding exists: Django backend under `src/backend` (11 apps under `apps/`, settings split in `config/settings/`), Next.js frontend under `src/frontend`, Docker Compose + nginx under `deployment/`. Business logic has not started; phases are tracked in `TECHNICAL_ARCHITECTURE.md` §15.
+
+Commands (root `Makefile`): `make up` (full stack via Docker at `http://localhost:8080`), `make venv` (host venv for backend tooling), `make test` (pytest; config in root `pytest.ini`, tests under `tests/` mirroring `src/`), `make lint` (ruff + eslint), `make typecheck` (tsc).
 
 Decided tech stack (see `docs/requirements/SYSTEM_SPEC.md` §23): Django + Django REST Framework, PostgreSQL, Next.js/TypeScript frontend with Tailwind CSS (shadcn/ui or Radix UI), Celery + Redis for background jobs, Docker Compose locally. File uploads use local Django media in development and S3-compatible storage in deployment (DB stores metadata/paths only, never file contents). Target deployment is a single EC2 instance on AWS after local testing.
 

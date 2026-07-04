@@ -28,3 +28,18 @@ venv/
 data/exports/*
 !data/exports/.gitkeep
 
+
+# Python tooling caches
+.pytest_cache/
+.ruff_cache/
+
+# Django dev files
+src/backend/media/*
+!src/backend/media/.gitkeep
+src/backend/staticfiles/
+
+# TypeScript
+*.tsbuildinfo
+
+# Python build artifacts
+*.egg-info/

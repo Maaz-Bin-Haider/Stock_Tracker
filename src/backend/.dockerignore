@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+media/
+staticfiles/
+.pytest_cache/
+.ruff_cache/
+Dockerfile

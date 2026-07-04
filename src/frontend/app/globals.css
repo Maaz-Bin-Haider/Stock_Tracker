@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/*
+ * Semantic design tokens (TECHNICAL_ARCHITECTURE §9.1).
+ * Components reference tokens only, never raw colors. The dark palette is a
+ * separately designed token set (FR-125), not an inversion — it lands with the
+ * theming milestone; only the light defaults exist at M0.
+ */
+:root {
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --foreground: #0f172a;
+  --primary: #1d4ed8;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

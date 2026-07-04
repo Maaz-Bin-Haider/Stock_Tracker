@@ -41,8 +41,31 @@ The original workbook reference is stored at:
 
 - `data/source/stock_tracker_original.xlsx`
 
+## Development
+
+Phase M0 scaffolding is in place: Django backend (`src/backend`), Next.js frontend (`src/frontend`), and a Docker Compose environment (`deployment/`).
+
+Run the full stack (requires Docker):
+
+```bash
+make up        # docker compose up --build; app served at http://localhost:8080
+make down      # stop the stack
+make logs      # follow container logs
+```
+
+nginx serves everything from one origin: `/` → Next.js, `/api` and `/admin` → Django, `/media` → dev uploads.
+
+Backend development (host tooling):
+
+```bash
+make venv      # create .venv and install backend deps
+make test      # pytest (tests live under tests/, mirroring src/)
+make lint      # ruff (backend) + eslint (frontend)
+make typecheck # tsc --noEmit (frontend)
+```
+
+CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, and the frontend build on every push/PR to main.
+
 ## Current Status
 
-Requirements and system planning documents are prepared. Application implementation has not started yet.
-
-The architecture diagrams now define the high-level use cases, activities, sequences, class model, and database ER model for the first implementation planning phase.
+Requirements and planning documents are complete; phase M0 (repo scaffolding) is done. Next phase is M1: accounts, master data, products, and the audit foundation (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
