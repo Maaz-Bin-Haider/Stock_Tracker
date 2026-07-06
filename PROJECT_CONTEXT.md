@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Application implementation has not started yet.
+- Implementation status: phases M0–M2 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection). Next: M3 purchase refunds/cancellations.
 
 ## Current Project Structure
 
@@ -102,6 +102,24 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
+### 2026-07-06
+
+- Completed phase M2 (inventory core + purchases + collection), verified end-to-end through nginx and by the ledger drift check:
+  - `apps/inventory`: append-only `StockLedgerEntry` (txn types for all §5.2 events, `reversal_of` FK so corrections reference originals) and materialized `StockBalance` (product × location × bucket, `quantity` + `value_aed`; weighted average unit cost = `value_aed / quantity` per TECHNICAL_ARCHITECTURE §5.3.1).
+  - `post_event` in `apps/inventory/services.py` is the only ledger writer: runs in `transaction.atomic()`, locks balance rows with `SELECT ... FOR UPDATE`, enforces the `confirm_negative` flag for PHYSICAL stock going negative (FR-082/FR-083), and validates movement shape. `reversal_movements()` builds exact undo movements.
+  - `rebuild_stock_balances` management command + Celery task recomputes balances from the full ledger and reports drift (consistency check, TECHNICAL_ARCHITECTURE §5.3).
+  - Read-only `/api/v1/stock/ledger/` and `/api/v1/stock/balances/` for all roles; `value_aed` on balances is stripped server-side for non-admins (stock valuation is admin-only, FR-116).
+  - `apps/purchases`: `Purchase` + `PurchaseLine` (currency, exchange rate, AED unit/total, GST rate/amount all frozen at entry; defaults resolved from Settings, manual override wins per FR-089), `PurchaseCollection` + lines. Statuses and collected/pending quantities always computed (properties + annotated querysets), never stored.
+  - Ledger mapping implemented in `apps/purchases/services.py`: entry → +PENDING; collection → −PENDING @ purchase location, +PHYSICAL @ collection location; line edits → reversal of remaining pending + fresh rows (pricing immutable once a line has collected stock; quantity cannot drop below collected); soft delete → reversal rows only (pending backed out, collected physical reversed). Proportional value allocation from the ledger keeps pending value exactly zero when a line is fully collected.
+  - Business rule note: GST on −PENDING collection rows is bucket bookkeeping (keeps remaining-pending GST exact for M3 cancellations); GST liability lives on PURCHASE_ENTRY rows and purchase lines — never sum `gst_value` across all ledger rows.
+  - API: `/api/v1/purchases/` CRUD with nested lines and quick totals (FR-103); explicit sub-resources `POST/GET /purchases/{id}/collections/`, `DELETE /purchases/{id}/collections/{cid}/`; `GET /purchases/pending-lines/` feeds the Collection/Pending page; `?confirm_negative=true` passes the negative-stock confirmation on deletes. All writes audited in-transaction via the purchase services.
+  - Frontend: Purchases page (multi-line invoice form with auto/override exchange rate, collected-now quantities, expandable line detail, quick-totals cards), Collection/Pending page (per-line partial collection), Stock Ledger page (balances + movement history tabs, Dubai-time display, admin-only value column); nav + permissions mirror updated.
+  - Tests: 80 passing (34 new — post_event validation/negative-confirmation/reversals/rebuild drift, every implemented §5.2 mapping row incl. partials, edit/delete reversals, frozen-value assertions, role matrix for purchases/collections/stock endpoints, reconciliation after every scenario).
+- Files: `src/backend/apps/inventory/*`, `src/backend/apps/purchases/*`, `src/backend/config/urls.py`, `src/frontend/app/(app)/{purchases,purchase-collection,stock-ledger}/page.tsx`, `src/frontend/app/(app)/layout.tsx`, `src/frontend/lib/permissions.ts`, `tests/backend/{conftest,test_inventory,test_purchases,test_stock_api}.py`.
+- Design decision recorded: collection posts −PENDING at the *purchase* location and +PHYSICAL at the *collection* location (they default to the same place); §5.2's "−PENDING @ collection location" wording assumes they match — posting the reduction where the pending was created keeps balances consistent when they differ.
+- New open item: purchase/sale file attachments (FR-035/FR-073) still pending the `attachments` app — fold into M5/M6.
+- Next recommended step: **Phase M3 — purchase refunds/cancellations** (separate page/endpoint, line-level partial refunds, reversal entries referencing original invoice/lines, GST + AED reversal at original line rate, `refunded_qty` wired into the pending formula and statuses CANCELLED/REFUNDED).
+
 ### 2026-07-04
 
 - Completed phase M1 (accounts, master data, products, audit foundation), all verified end-to-end through nginx:
@@ -160,14 +178,12 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M2 — inventory core + purchases + collection.** M0 and M1 are committed and verified; M2 has not been started. Per `TECHNICAL_ARCHITECTURE.md` §5 and §15:
+**TODO (next session): Phase M3 — purchase refunds/cancellations.** M0–M2 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15 and SYSTEM_SPEC §10:
 
-- [ ] `inventory` app: append-only `stock_ledger` table (never update/delete rows; reversals reference originals).
-- [ ] Materialized `stock_balances` (product × location × bucket, `quantity` + `value_aed`) updated in the same transaction with `SELECT ... FOR UPDATE` row locking.
-- [ ] Single `post_event` posting service in `inventory/services.py` — the only ledger writer; enforces transactions, quantity validation, `confirm_negative` flag, and in-transaction audit writes.
-- [ ] `rebuild_stock_balances` management command / Celery task as the drift check.
-- [ ] Purchases: invoice + lines (currency, exchange rate frozen at entry, GST rate/amount, computed AED values); statuses/pending always computed, never stored as user input (SYSTEM_SPEC §8).
-- [ ] Purchase collection as an explicit sub-resource endpoint posting −PENDING/+PHYSICAL per the §5.2 event→ledger mapping table.
-- [ ] Tests keyed to the §5.2 mapping table rows, including partial collection and the balance-reconciliation test.
+- [ ] `PurchaseRefund` + `PurchaseRefundLine` models (reason required, reference to original purchase + line).
+- [ ] Refund service posting the §5.2 rows: pending cancellation → −PENDING (uses the existing `_pending_remainder` proportional allocation, which already tracks pending GST); received refund → −PHYSICAL at the collection location with AED/GST reversed at the original purchase line rate (FR-122); `confirm_negative` pass-through.
+- [ ] Wire `PurchaseLine.refunded_qty` (currently a zero placeholder) to refund lines; statuses CANCELLED/REFUNDED start appearing; refund validation against refundable/cancellable quantities.
+- [ ] Explicit endpoint `POST /api/v1/purchases/{id}/refunds/` + refund list page (separate page per FR-044) and line-level partial quantities (FR-047/FR-048).
+- [ ] Tests: partial pending cancellation, received-quantity refund with stock reversal, GST reversal, mixed received/pending lines, reconciliation.
 
-Deferred small items from M1 (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 table list — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9 — current lean fetch wrapper works and the schema endpoint is already live).
+Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), file attachments app (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).

@@ -116,7 +116,7 @@ This table is the contract every service implements. One business event may writ
 | Business event | Ledger entries (bucket @ location) |
 | --- | --- |
 | Purchase line entered | +PENDING @ purchase location |
-| Purchase collection | −PENDING, +PHYSICAL @ collection location |
+| Purchase collection | −PENDING @ purchase location, +PHYSICAL @ collection location (they default to the same place; the reduction posts where the pending was created) |
 | Refund/cancel of pending qty | −PENDING @ purchase location |
 | Refund of received qty | −PHYSICAL @ collection location (with negative AED/GST values) |
 | Shipment marked shipped | −PHYSICAL @ from-location, +IN_TRANSIT @ to-location |

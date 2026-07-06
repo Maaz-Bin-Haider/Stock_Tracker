@@ -10,6 +10,9 @@ import { AuthContext, type SessionUser } from "@/lib/auth";
 const NAV: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/products", label: "Products" },
+  { href: "/purchases", label: "Purchases" },
+  { href: "/purchase-collection", label: "Collection / Pending" },
+  { href: "/stock-ledger", label: "Stock Ledger" },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/customers", label: "Customers" },
   { href: "/settings/categories", label: "Categories" },
