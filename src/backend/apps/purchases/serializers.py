@@ -2,9 +2,9 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from apps.masterdata.models import ExchangeRate, GstRate
+from apps.masterdata.models import ExchangeRate, GstRate, Location
 
-from .models import Purchase, PurchaseCollection, PurchaseLine
+from .models import Purchase, PurchaseCollection, PurchaseLine, PurchaseRefund, RefundSource
 
 
 class PurchaseLineSerializer(serializers.ModelSerializer):
@@ -24,6 +24,8 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
     )
     collected = serializers.SerializerMethodField()
     pending = serializers.SerializerMethodField()
+    refunded = serializers.SerializerMethodField()
+    net = serializers.SerializerMethodField()
     status = serializers.CharField(read_only=True)
 
     class Meta:
@@ -46,6 +48,8 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
             "collected_qty",
             "collected",
             "pending",
+            "refunded",
+            "net",
             "status",
             "notes",
         ]
@@ -67,6 +71,12 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
     def get_pending(self, obj):
         agg = getattr(obj, "pending_qty_agg", None)
         return str(agg if agg is not None else obj.pending_qty)
+
+    def get_refunded(self, obj):
+        return str(obj.refunded_qty)
+
+    def get_net(self, obj):
+        return str(obj.net_qty)
 
     def validate(self, attrs):
         quantity = attrs.get("quantity", getattr(self.instance, "quantity", None))
@@ -207,3 +217,49 @@ class PurchaseCollectionSerializer(serializers.ModelSerializer):
         read_only_fields = ["purchase"]
         # Defaults to the purchase location when omitted (SYSTEM_SPEC §9).
         extra_kwargs = {"location": {"required": False}}
+
+
+class RefundLineSerializer(serializers.Serializer):
+    purchase_line = serializers.PrimaryKeyRelatedField(
+        queryset=PurchaseLine.objects.filter(is_deleted=False)
+    )
+    source = serializers.ChoiceField(choices=RefundSource.choices)
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=2)
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=Location.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="RECEIVED refunds: where stock leaves physical (default: purchase location).",
+    )
+    product_name = serializers.CharField(source="purchase_line.product.__str__", read_only=True)
+    location_name = serializers.CharField(source="location.name", read_only=True)
+    value_reversal = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    value_reversal_aed = serializers.DecimalField(
+        max_digits=14, decimal_places=2, read_only=True
+    )
+    gst_reversal = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    gst_reversal_aed = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+
+
+class PurchaseRefundSerializer(serializers.ModelSerializer):
+    lines = RefundLineSerializer(many=True)
+    purchase_invoice_no = serializers.CharField(source="purchase.invoice_no", read_only=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username", read_only=True, default=None
+    )
+
+    class Meta:
+        model = PurchaseRefund
+        fields = [
+            "id",
+            "purchase",
+            "purchase_invoice_no",
+            "refund_no",
+            "refund_date",
+            "reason",
+            "notes",
+            "lines",
+            "created_by_username",
+            "created_at",
+        ]
+        read_only_fields = ["purchase", "refund_no"]

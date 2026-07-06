@@ -8,6 +8,9 @@ row in one ``transaction.atomic()`` block (SRS §7.3, TECHNICAL_ARCHITECTURE
 - Purchase line entered      → +PENDING @ purchase location
 - Purchase collection        → −PENDING @ purchase location,
                                +PHYSICAL @ collection location
+- Refund/cancel pending qty  → −PENDING @ purchase location
+- Refund of received qty     → −PHYSICAL @ collection location
+                               (AED/GST reversed at the original line rate)
 - Edit of a line             → reversal rows for the old pending state
                                + fresh rows for the new state
 - Soft delete                → reversal rows only
@@ -24,8 +27,17 @@ from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
 from apps.inventory.models import Bucket, StockLedgerEntry, TxnType
 from apps.inventory.services import Movement, post_event
+from apps.masterdata.models import Location
 
-from .models import Purchase, PurchaseCollection, PurchaseCollectionLine, PurchaseLine
+from .models import (
+    Purchase,
+    PurchaseCollection,
+    PurchaseCollectionLine,
+    PurchaseLine,
+    PurchaseRefund,
+    PurchaseRefundLine,
+    RefundSource,
+)
 
 TWO_PLACES = Decimal("0.01")
 MODULE = "purchases"
@@ -107,17 +119,49 @@ def _entry_movement(line: PurchaseLine, qty: Decimal, aed: Decimal, gst: Decimal
     )
 
 
-def _physical_entries(line: PurchaseLine):
-    """+PHYSICAL rows this line put into stock via collections (not yet reversed)."""
-    entries = StockLedgerEntry.objects.filter(
-        source_module=MODULE,
-        source_line_id=line.pk,
-        bucket=Bucket.PHYSICAL,
+def _physical_remainder_by_location(line: PurchaseLine) -> dict:
+    """{location_id: (qty, aed)} still in PHYSICAL for this line, per the
+    ledger — collections in, refunds/reversals out."""
+    rows = (
+        StockLedgerEntry.objects.filter(
+            source_module=MODULE, source_line_id=line.pk, bucket=Bucket.PHYSICAL
+        )
+        .values("location_id")
+        .annotate(
+            qty=Sum(F("qty_in") - F("qty_out")),
+            aed=Sum(
+                Case(
+                    When(qty_in__gt=0, then=F("aed_value")),
+                    default=F("aed_value") * -1,
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            ),
+        )
     )
-    reversed_ids = set(
-        entries.exclude(reversal_of=None).values_list("reversal_of_id", flat=True)
+    return {
+        row["location_id"]: (row["qty"] or Decimal("0"), row["aed"] or Decimal("0"))
+        for row in rows
+    }
+
+
+def _physical_share(line: PurchaseLine, location, quantity: Decimal) -> Decimal:
+    """AED share of ``quantity`` from the line's physical remainder at the
+    location; proportional, exact for the final quantity."""
+    remaining_qty, remaining_aed = _physical_remainder_by_location(line).get(
+        location.pk, (Decimal("0"), Decimal("0"))
     )
-    return [e for e in entries if e.pk not in reversed_ids and e.reversal_of_id is None]
+    if quantity > remaining_qty:
+        raise ValidationError(
+            {
+                "quantity": (
+                    f"Only {remaining_qty} of {line.product} is in stock at {location} "
+                    f"from this purchase line; cannot refund {quantity}."
+                )
+            }
+        )
+    if quantity == remaining_qty:
+        return remaining_aed
+    return _money(remaining_aed * quantity / remaining_qty)
 
 
 @transaction.atomic
@@ -325,6 +369,7 @@ PRICING_FIELDS = ("product", "unit_price", "currency", "exchange_rate", "gst_rat
 def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
     """Apply an edit to one line, returning reversal + fresh pending movements."""
     collected = line.collected_qty
+    cancelled_pending = line.cancelled_pending_qty
     changed = {
         name: value
         for name, value in line_data.items()
@@ -338,21 +383,27 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
         line.save()
         return []
 
-    if collected > 0:
+    if collected > 0 or line.refunded_qty > 0:
         illegal = [name for name in changed if name in PRICING_FIELDS or name == "gst_rate"]
         if illegal:
             raise ValidationError(
                 {
                     "lines": (
                         f"{line.product}: {', '.join(illegal)} cannot change after stock was "
-                        "collected. Refund the line (M3) or adjust quantity only."
+                        "collected or refunded. Use refund/cancellation, or adjust quantity only."
                     )
                 }
             )
     new_quantity = changed.get("quantity", line.quantity)
-    if new_quantity < collected:
+    floor = collected + cancelled_pending
+    if new_quantity < floor:
         raise ValidationError(
-            {"quantity": f"{line.product}: quantity {new_quantity} is below collected {collected}."}
+            {
+                "quantity": (
+                    f"{line.product}: quantity {new_quantity} is below collected + "
+                    f"cancelled ({floor})."
+                )
+            }
         )
 
     # Reverse what remains in pending for the old state.
@@ -379,9 +430,9 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
     line.updated_by = user
     line.save()
 
-    # Fresh pending rows for the new state: the uncollected part of the line,
-    # valued at the (possibly new) frozen line pricing.
-    fresh_qty = line.quantity - collected
+    # Fresh pending rows for the new state: the uncollected, uncancelled part
+    # of the line, valued at the (possibly new) frozen line pricing.
+    fresh_qty = line.quantity - collected - cancelled_pending
     if fresh_qty > 0:
         ratio = fresh_qty / line.quantity
         movements.append(
@@ -397,12 +448,12 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
 
 def _remove_line(line: PurchaseLine, user) -> list[Movement]:
     """Soft-delete a line during an invoice edit; reversal rows only (§5.2)."""
-    if line.collected_qty > 0:
+    if line.collected_qty > 0 or line.refunded_qty > 0:
         raise ValidationError(
             {
                 "lines": (
-                    f"{line.product}: line has collected stock and cannot be removed. "
-                    "Use refund/cancellation (M3)."
+                    f"{line.product}: line has collection or refund history and cannot be "
+                    "removed from the invoice. Use refund/cancellation instead."
                 )
             }
         )
@@ -455,17 +506,18 @@ def soft_delete_purchase(*, purchase: Purchase, user, confirm_negative=False) ->
                     notes="Purchase deleted.",
                 )
             )
-        for entry in _physical_entries(line):
+        for location_id, (qty, aed) in _physical_remainder_by_location(line).items():
+            if qty <= 0:
+                continue
             movements.append(
                 Movement(
-                    product=entry.product,
-                    location=entry.location,
+                    product=line.product,
+                    location=Location.objects.get(pk=location_id),
                     bucket=Bucket.PHYSICAL,
-                    qty_out=entry.qty_in,
-                    aed_value=entry.aed_value,
-                    currency=entry.currency,
+                    qty_out=qty,
+                    aed_value=aed,
+                    currency=line.currency.code,
                     source_line_id=line.pk,
-                    reversal_of=entry,
                     notes="Purchase deleted.",
                 )
             )
@@ -475,6 +527,10 @@ def soft_delete_purchase(*, purchase: Purchase, user, confirm_negative=False) ->
     for collection in purchase.collections.filter(is_deleted=False):
         collection.is_deleted, collection.deleted_at, collection.deleted_by = True, now, user
         collection.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    for refund in purchase.refunds.filter(is_deleted=False):
+        refund.is_deleted, refund.deleted_at, refund.deleted_by = True, now, user
+        refund.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
 
     if movements:
         post_event(
@@ -536,6 +592,204 @@ def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=
     )
 
 
+@transaction.atomic
+def create_refund(
+    *,
+    purchase: Purchase,
+    refund_date,
+    reason: str,
+    lines: list[dict],
+    notes="",
+    refund_no="",
+    user,
+    confirm_negative=False,
+) -> PurchaseRefund:
+    """Line-level partial refund/cancellation (FR-047/FR-048).
+
+    PENDING source cancels undelivered quantity (−PENDING at the purchase
+    location); RECEIVED source returns delivered stock (−PHYSICAL at the
+    location holding it). AED and GST reverse at the original purchase line
+    rate, frozen onto the refund line for the GST/refund reports
+    (FR-053/FR-054/FR-093/FR-122).
+    """
+    if purchase.is_deleted:
+        raise ValidationError({"purchase": "This purchase has been deleted."})
+    if not lines:
+        raise ValidationError({"lines": "At least one line is required."})
+    if not reason.strip():
+        raise ValidationError({"reason": "A reason is required."})
+
+    refund = PurchaseRefund.objects.create(
+        purchase=purchase,
+        refund_no=refund_no,
+        refund_date=refund_date,
+        reason=reason,
+        notes=notes,
+        created_by=user,
+        updated_by=user,
+    )
+    if not refund.refund_no:
+        refund.refund_no = f"RF-{refund.pk:06d}"
+        refund.save(update_fields=["refund_no"])
+
+    movements = []
+    for line_data in lines:
+        line: PurchaseLine = line_data["purchase_line"]
+        source: str = line_data["source"]
+        quantity: Decimal = line_data["quantity"]
+        if line.purchase_id != purchase.pk or line.is_deleted:
+            raise ValidationError({"lines": f"Line {line.pk} does not belong to this purchase."})
+        if quantity <= 0:
+            raise ValidationError({"quantity": "Refund quantity must be positive."})
+
+        # Original-line-rate reversal values, frozen for reporting.
+        value_reversal = _money(quantity * line.unit_price)
+        value_reversal_aed = _money(value_reversal * line.exchange_rate)
+        gst_reversal = _money(quantity * line.unit_price * line.gst_rate_percent / 100)
+        gst_reversal_aed = _money(gst_reversal * line.exchange_rate)
+
+        if source == RefundSource.PENDING:
+            location = purchase.location
+            if quantity > line.pending_qty:
+                raise ValidationError(
+                    {
+                        "quantity": (
+                            f"Only {line.pending_qty} of {line.product} is pending; "
+                            f"cannot cancel {quantity}."
+                        )
+                    }
+                )
+            # Ledger share keeps the pending bucket exact (zero when emptied).
+            aed_share, gst_share = _pending_share(line, quantity)
+            movements.append(
+                Movement(
+                    product=line.product,
+                    location=location,
+                    bucket=Bucket.PENDING,
+                    qty_out=quantity,
+                    aed_value=aed_share,
+                    gst_value=gst_share,
+                    currency=line.currency.code,
+                    source_line_id=line.pk,
+                    notes=f"Cancelled: {reason}"[:255],
+                )
+            )
+        elif source == RefundSource.RECEIVED:
+            location = line_data.get("location") or purchase.location
+            aed_share = _physical_share(line, location, quantity)
+            movements.append(
+                Movement(
+                    product=line.product,
+                    location=location,
+                    bucket=Bucket.PHYSICAL,
+                    qty_out=quantity,
+                    aed_value=aed_share,
+                    # Informational: GST reversal at the original line rate.
+                    # Net GST reporting reads purchase/refund lines, never
+                    # ledger gst sums (see collect_purchase note).
+                    gst_value=gst_reversal_aed,
+                    currency=line.currency.code,
+                    source_line_id=line.pk,
+                    notes=f"Refunded: {reason}"[:255],
+                )
+            )
+        else:
+            raise ValidationError({"source": f"Unknown refund source {source!r}."})
+
+        PurchaseRefundLine.objects.create(
+            refund=refund,
+            purchase_line=line,
+            source=source,
+            quantity=quantity,
+            location=location,
+            value_reversal=value_reversal,
+            value_reversal_aed=value_reversal_aed,
+            gst_reversal=gst_reversal,
+            gst_reversal_aed=gst_reversal_aed,
+        )
+
+    post_event(
+        txn_type=TxnType.PURCHASE_REFUND,
+        source_module=MODULE,
+        source_id=refund.pk,
+        movements=movements,
+        created_by=user,
+        confirm_negative=confirm_negative,
+    )
+    record_audit(
+        action=AuditLog.Action.CREATE,
+        module="purchase_refunds",
+        record_id=refund.pk,
+        record_repr=str(refund),
+        after=snapshot_refund(refund),
+    )
+    return refund
+
+
+@transaction.atomic
+def delete_refund(*, refund: PurchaseRefund, user, confirm_negative=False) -> None:
+    """Undo a refund: its reversal entries are themselves reversed (history
+    preserved), and the refund is soft-deleted."""
+    if refund.is_deleted:
+        raise ValidationError({"refund": "This refund is already deleted."})
+    before = snapshot_refund(refund)
+
+    entries = StockLedgerEntry.objects.filter(
+        source_module=MODULE,
+        txn_type=TxnType.PURCHASE_REFUND,
+        source_id=refund.pk,
+    )
+    from apps.inventory.services import reversal_movements
+
+    movements = reversal_movements(entries, notes="Refund deleted.")
+
+    refund.is_deleted = True
+    refund.deleted_at = timezone.now()
+    refund.deleted_by = user
+    refund.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    if movements:
+        post_event(
+            txn_type=TxnType.DELETE_REVERSAL,
+            source_module=MODULE,
+            source_id=refund.pk,
+            movements=movements,
+            created_by=user,
+            confirm_negative=confirm_negative,
+        )
+    record_audit(
+        action=AuditLog.Action.DELETE,
+        module="purchase_refunds",
+        record_id=refund.pk,
+        record_repr=str(refund),
+        before=before,
+    )
+
+
+def snapshot_refund(refund: PurchaseRefund) -> dict:
+    return {
+        "refund_no": refund.refund_no,
+        "purchase": refund.purchase.invoice_no,
+        "refund_date": str(refund.refund_date),
+        "reason": refund.reason,
+        "notes": refund.notes,
+        "lines": [
+            {
+                "purchase_line": line.purchase_line_id,
+                "product": str(line.purchase_line.product),
+                "source": line.source,
+                "quantity": str(line.quantity),
+                "location": line.location.name,
+                "value_reversal": str(line.value_reversal),
+                "value_reversal_aed": str(line.value_reversal_aed),
+                "gst_reversal": str(line.gst_reversal),
+                "gst_reversal_aed": str(line.gst_reversal_aed),
+            }
+            for line in refund.lines.all()
+        ],
+    }
+
+
 def snapshot_purchase(purchase: Purchase) -> dict:
     return {
         "invoice_no": purchase.invoice_no,
@@ -557,6 +811,8 @@ def snapshot_purchase(purchase: Purchase) -> dict:
                 "gst_amount": str(line.gst_amount),
                 "collected_qty": str(line.collected_qty),
                 "pending_qty": str(line.pending_qty),
+                "refunded_qty": str(line.refunded_qty),
+                "net_qty": str(line.net_qty),
                 "status": line.status,
                 "notes": line.notes,
             }

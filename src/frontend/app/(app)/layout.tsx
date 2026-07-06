@@ -12,6 +12,7 @@ const NAV: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/products", label: "Products" },
   { href: "/purchases", label: "Purchases" },
   { href: "/purchase-collection", label: "Collection / Pending" },
+  { href: "/purchase-refunds", label: "Refunds / Cancellations" },
   { href: "/stock-ledger", label: "Stock Ledger" },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/customers", label: "Customers" },

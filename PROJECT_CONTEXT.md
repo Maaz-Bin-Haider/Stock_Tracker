@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M2 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection). Next: M3 purchase refunds/cancellations.
+- Implementation status: phases M0–M3 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations). Next: M4 shipments + receiving.
 
 ## Current Project Structure
 
@@ -102,6 +102,19 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
+### 2026-07-06 (later — M3)
+
+- Completed phase M3 (purchase refunds/cancellations), verified end-to-end through nginx with zero ledger drift:
+  - `PurchaseRefund` (auto `refund_no` "RF-000001"-style, required reason, soft delete) + `PurchaseRefundLine` with an explicit `source` per line: `PENDING` cancels undelivered quantity (FR-049, −PENDING @ purchase location), `RECEIVED` returns delivered stock (FR-050, −PHYSICAL @ the location holding it, defaulting to the purchase location). Reversal values (original currency + AED + GST both) are frozen on the refund line at the original purchase line rate (FR-053/FR-054/FR-093/FR-122) for the M6 GST/refund reports.
+  - Ledger postings reuse the proportional-remainder allocators so buckets land on exactly zero when emptied; received refunds validate against the line's per-location physical remainder computed from the ledger. `confirm_negative` passes through for refunds that would drive physical stock negative.
+  - `PurchaseLine` quantity model finalized: `pending = quantity − collected − cancelled_pending` (SYSTEM_SPEC §8), `net = quantity − refunded_total` (the GST-report quantity), statuses now include CANCELLED/REFUNDED (REFUNDED when any delivered stock was returned). List annotations moved to subqueries to avoid multi-join fan-out.
+  - Edit/delete flows updated for refund history: pricing locks once a line has collections *or* refunds; quantity floor is collected + cancelled; purchase soft delete reverses per-location physical remainders (no over-reversal after received refunds) and soft-deletes refunds along with lines/collections. Refund deletion ("undo") reverses the refund's own ledger entries, preserving the full chain.
+  - API: `POST/GET /api/v1/purchases/{id}/refunds/`, `DELETE /api/v1/purchases/{id}/refunds/{rid}/` (admin + purchase users; read for all). Audited as module `purchase_refunds` in-transaction.
+  - Frontend: Purchase Refunds/Cancellations page per the FR-044 workflow — search/select invoice → line table with collected/pending/refunded/net → per-line quantity + source (cancel pending vs return received) + required reason → refund history with per-refund AED/GST reversal totals and Undo; negative-stock confirmation retry built in. Nav updated.
+  - Tests: 97 passing (17 new — pending cancellation with GST reversal, received refund at line rate, whole-line REFUNDED/CANCELLED statuses, mixed received+pending lines in one invoice, over-refund rejections, refund undo, collect-after-partial-cancel, edit floor with cancellations, purchase delete after received refund, reason required, role matrix; reconciliation asserted in every scenario).
+- Files: `src/backend/apps/purchases/{models,services,serializers,views}.py` + migration 0002, `src/frontend/app/(app)/purchase-refunds/page.tsx`, `src/frontend/app/(app)/layout.tsx`, `tests/backend/test_purchase_refunds.py`.
+- Next recommended step: **Phase M4 — shipments + receiving (incl. Dubai→Karachi)** per TECHNICAL_ARCHITECTURE §15: shipment/receipt models with computed statuses (draft/shipped/partially received/fully received/cancelled), ledger rows −PHYSICAL @ from-location / +IN_TRANSIT @ to-location on ship, −IN_TRANSIT/+PHYSICAL on receipt, cancellation reversals of unreceived quantities, partial + over-receiving with warnings (IN_TRANSIT may go negative per §5.2, flag `over_received`), negative-stock confirmation on shipping, value moved at the source's carrying average cost (§5.3.1) — first flow that consumes `stock_balances` value rather than line-frozen values.
+
 ### 2026-07-06
 
 - Completed phase M2 (inventory core + purchases + collection), verified end-to-end through nginx and by the ledger drift check:
@@ -178,12 +191,14 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M3 — purchase refunds/cancellations.** M0–M2 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15 and SYSTEM_SPEC §10:
+**TODO (next session): Phase M4 — shipments + receiving (incl. Dubai→Karachi).** M0–M3 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15 and SYSTEM_SPEC §11:
 
-- [ ] `PurchaseRefund` + `PurchaseRefundLine` models (reason required, reference to original purchase + line).
-- [ ] Refund service posting the §5.2 rows: pending cancellation → −PENDING (uses the existing `_pending_remainder` proportional allocation, which already tracks pending GST); received refund → −PHYSICAL at the collection location with AED/GST reversed at the original purchase line rate (FR-122); `confirm_negative` pass-through.
-- [ ] Wire `PurchaseLine.refunded_qty` (currently a zero placeholder) to refund lines; statuses CANCELLED/REFUNDED start appearing; refund validation against refundable/cancellable quantities.
-- [ ] Explicit endpoint `POST /api/v1/purchases/{id}/refunds/` + refund list page (separate page per FR-044) and line-level partial quantities (FR-047/FR-048).
-- [ ] Tests: partial pending cancellation, received-quantity refund with stock reversal, GST reversal, mixed received/pending lines, reconciliation.
+- [ ] `Shipment` + `ShipmentLine` + receipt models; header fields per FR-058 (shipment type distinguishes the Dubai→Karachi transfer flow), shipping cost recorded but excluded from stock value (FR-119).
+- [ ] Statuses computed, never stored: draft / shipped / partially received / fully received / cancelled (FR-060).
+- [ ] Ledger rows: ship → −PHYSICAL @ from-location, +IN_TRANSIT @ to-location; receipt → −IN_TRANSIT/+PHYSICAL @ to-location; cancel → reversal of unreceived quantities. Value moves at the source location's carrying average cost from `stock_balances` (§5.3.1) — the first flow consuming carrying value rather than line-frozen values.
+- [ ] Negative-stock confirmation on shipping (FR-083); over-receiving allowed with warning, IN_TRANSIT may go negative for the line, flag `over_received` drives highlighting (§5.2 note, FR-084/FR-085).
+- [ ] Endpoints per §6: `/api/v1/shipments/`, `/api/v1/shipments/{id}/receipts/`; admin + purchase users write (Batch 9 decision).
+- [ ] Frontend: Shipments page + receiving flow; in-transit visibility.
+- [ ] Tests: ship/receive/partial/over-receive/cancel, Dubai→Karachi, valuation-at-carrying-average, reconciliation.
 
 Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), file attachments app (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).

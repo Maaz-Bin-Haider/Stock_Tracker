@@ -9,10 +9,17 @@ from apps.accounts.permissions import ModulePermission
 from apps.inventory.services import NegativeStockError
 
 from . import services
-from .models import Purchase, PurchaseCollection, PurchaseLine, annotate_line_quantities
+from .models import (
+    Purchase,
+    PurchaseCollection,
+    PurchaseLine,
+    PurchaseRefund,
+    annotate_line_quantities,
+)
 from .serializers import (
     PurchaseCollectionSerializer,
     PurchaseLineSerializer,
+    PurchaseRefundSerializer,
     PurchaseSerializer,
 )
 
@@ -132,6 +139,56 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             services.delete_collection(
                 collection=collection, user=request.user, confirm_negative=confirm
             )
+        except NegativeStockError as exc:
+            raise ValidationError(
+                {"detail": str(exc), "code": "negative_stock_confirmation_required"}
+            ) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get", "post"], url_path="refunds")
+    def refunds(self, request, pk=None):
+        """Refund/cancellation sub-resource (FR-044…FR-054): reversal entries
+        against a selected invoice, never edits to the original."""
+        purchase = self.get_object()
+        if request.method == "GET":
+            queryset = purchase.refunds.filter(is_deleted=False).prefetch_related(
+                "lines__purchase_line__product", "lines__location"
+            )
+            return Response(PurchaseRefundSerializer(queryset, many=True).data)
+
+        serializer = PurchaseRefundSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        confirm = request.query_params.get("confirm_negative") == "true"
+        try:
+            refund = services.create_refund(
+                purchase=purchase,
+                refund_date=serializer.validated_data["refund_date"],
+                reason=serializer.validated_data["reason"],
+                lines=serializer.validated_data["lines"],
+                notes=serializer.validated_data.get("notes", ""),
+                user=request.user,
+                confirm_negative=confirm,
+            )
+        except NegativeStockError as exc:
+            raise ValidationError(
+                {"detail": str(exc), "code": "negative_stock_confirmation_required"}
+            ) from exc
+        return Response(PurchaseRefundSerializer(refund).data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path="refunds/(?P<refund_pk>[0-9]+)",
+    )
+    def delete_refund(self, request, pk=None, refund_pk=None):
+        purchase = self.get_object()
+        try:
+            refund = purchase.refunds.get(pk=refund_pk, is_deleted=False)
+        except PurchaseRefund.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        confirm = request.query_params.get("confirm_negative") == "true"
+        try:
+            services.delete_refund(refund=refund, user=request.user, confirm_negative=confirm)
         except NegativeStockError as exc:
             raise ValidationError(
                 {"detail": str(exc), "code": "negative_stock_confirmation_required"}
