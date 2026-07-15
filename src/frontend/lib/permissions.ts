@@ -15,6 +15,8 @@ const WRITE_ACCESS: Record<string, Role[]> = {
   products: ["ADMIN", "PURCHASE"],
   purchases: ["ADMIN", "PURCHASE"],
   shipments: ["ADMIN", "PURCHASE"],
+  sales: ["ADMIN", "SALE"],
+  "stock-adjustments": ["ADMIN"],
   users: ["ADMIN"],
 };
 

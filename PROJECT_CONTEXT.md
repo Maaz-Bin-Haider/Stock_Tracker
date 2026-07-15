@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M4 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi). Next: M5 sales + stock adjustments.
+- Implementation status: phases M0–M5 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments). Next: M6 dashboard + reports + exports + stock valuation.
 
 ## Current Project Structure
 
@@ -101,6 +101,18 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-15 (later — M5)
+
+- Completed phase M5 (sales + stock adjustments), verified end-to-end through nginx with zero ledger drift:
+  - `apps/sales`: `Sale` (auto `sale_no` "SL-000001"-style, location validated against `is_sales_location` — Dubai/Karachi only per FR-068 — customer tracked, no payment status per FR-071) + `SaleLine` with an optional reference-only `unit_price` (FR-070) that never touches stock value.
+  - Ledger mapping (§5.2): sale → −PHYSICAL @ sale location at the location's carrying average from `stock_balances` (§5.3.1), via a running per-product `CarryingPool` so multi-line sales share value proportionally and empty the pool to exactly zero; line edits post a reversal of the line's net posted state (restoring the *old* product when the product changed, and crediting the pool before fresh rows draw from it) + fresh rows at the current average; soft delete posts reversal rows only. Sale location is locked after entry (stock already left it). Negative stock requires `confirm_negative` (FR-083).
+  - `StockAdjustment` lives in `apps/inventory` per TECHNICAL_ARCHITECTURE §3 (model + `adjustments.py` services): direction via `adjustment_type` INCREASE|DECREASE with a mandatory reason (FR-075); decreases take a proportional share of the physical pool (exact when emptied), increases add at the current carrying average so unit cost is undisturbed; edits reverse the net posted state + fresh rows; deletes reverse only. Admin-only writes per the §6 matrix.
+  - API: `/api/v1/sales/` CRUD with quick totals (total quantity + reference-only sale value, FR-103); `/api/v1/stock-adjustments/` CRUD; `?confirm_negative=true` retry contract on both. Sale users get their first write module (admin + sale write sales; product creation stays closed to them, FR-017).
+  - Frontend: Sales page (sales-location-filtered dropdown, customer, per-line optional price, expandable lines, negative-stock retry on create/edit) and Stock Adjustments page (single-record form with type/reason, negative retry on create/edit/delete); nav + permissions mirror updated.
+  - Tests: 135 passing (19 new — carrying-average value removal incl. exact emptying, optional price, non-sales-location rejection, negative confirmations (sale + adjustment), edit reversal + fresh rows (sale + adjustment), price-only edit posts nothing, location change rejected, delete restores stock (sale + adjustment), increase-at-average, reason required, role matrices incl. sale-user-cannot-create-products, quick totals; reconciliation asserted in every scenario). `conftest.make_user` now reuses an existing user of the same username so fixtures and tests can request the same role twice.
+- Files: `src/backend/apps/sales/{models,services,serializers,views}.py` + migration 0001, `src/backend/apps/inventory/{models,adjustments,serializers,views}.py` + migration 0002, `src/backend/config/urls.py`, `src/frontend/app/(app)/{sales,stock-adjustments}/page.tsx`, `src/frontend/app/(app)/layout.tsx`, `src/frontend/lib/permissions.ts`, `tests/backend/{conftest,test_sales,test_stock_adjustments}.py`.
+- Next recommended step: **Phase M6 — dashboard + reports + Excel/PDF exports (Celery) + admin stock valuation** per TECHNICAL_ARCHITECTURE §15/§8 and SRS §5: dashboard cards (FR-094…FR-095) + past-cutoff snapshot aggregating the ledger with `txn_at <= cutoff` (FR-096), the SRS §5 report list over annotated querysets (GST report per §5.1 from purchase/refund lines — never ledger gst sums), Celery Excel (openpyxl)/PDF (WeasyPrint) export pipeline with filtered-data-only exports (FR-097…FR-101), admin-only valuation summary/detail endpoints reading `stock_balances` (FR-115…FR-123) in `apps/reports`, and the `attachments` app for export storage (FR-104…FR-107). Use `apps/core/time.py` business-day helpers for every "today" boundary (FR-128).
 
 ### 2026-07-15 (M4)
 
@@ -205,13 +217,13 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M5 — sales + stock adjustments.** M0–M4 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15, SYSTEM_SPEC §12/§13, and SRS FR-067…FR-077:
+**TODO (next session): Phase M6 — dashboard + reports + exports + admin stock valuation.** M0–M5 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §8/§15 and SRS §5:
 
-- [ ] `Sale` + `SaleLine`: sale number/reference, sale date, location validated against `is_sales_location` (Dubai/Karachi only, FR-068), customer FK, optional reference-only sale price (never for profit, FR-070), notes. Sale users get CRUD (their first write module — exercise the role matrix carefully).
-- [ ] `StockAdjustment`: date, location, product, adjustment type, quantity, required reason (FR-075); admin-only writes per SYSTEM_SPEC §6.
-- [ ] Ledger rows: sale → −PHYSICAL @ sale location; adjustment → ±PHYSICAL @ location; both remove/add value at the location's carrying average (§5.3.1); edits → reversal + fresh rows; deletes → reversal rows only.
-- [ ] Negative-stock confirmation on sale (FR-083); sale users cannot create products (FR-017).
-- [ ] Frontend: Sales page (customer, per-line quantities, optional price) + Stock Adjustments page; nav + permissions mirror.
-- [ ] Tests: sale entry/edit/delete reversals, non-sales-location rejection, carrying-average value removal, adjustment reason required, role matrix (sale user especially), reconciliation everywhere.
+- [ ] Dashboard endpoint + page: live cards (total company stock, stock by location, pending, in-transit, Dubai/Karachi stock, GST total, today's sales in Dubai time — FR-094/FR-095) reading `stock_balances`; past-cutoff snapshot aggregating the ledger with `txn_at <= cutoff` (FR-096). Use `apps/core/time.py` helpers for every "today" boundary (FR-128).
+- [ ] Reports (`apps/reports`, read-only endpoints over annotated querysets): the SRS §5 list — current stock by location, total company stock, Australia combined (calculated view over `region_group`), Dubai/Karachi stock, pending purchase stock (+ by location), in-transit, purchase/sales reports, party-wise records, GST report (per SRS §5.1: purchase lines joined to refund lines; net qty and net GST from line-frozen values — never ledger gst sums), refund/cancellation report, ledger + adjustment reports, user activity, upload/file report.
+- [ ] Admin-only stock valuation summary/detail (FR-115…FR-123) reading `stock_balances` (`value_aed / quantity` = weighted average unit cost), behind the `valuation` ROLE_MATRIX entry.
+- [ ] Excel (openpyxl) / PDF (WeasyPrint, light professional theme per FR-101) exports via Celery: endpoint validates filters, enqueues, returns job id; files stored via the `attachments` app (FR-104…FR-107); exports contain exactly the filtered dataset (FR-098). The worker container already runs.
+- [ ] Frontend: Dashboard page (cards + past-cutoff picker), Reports section with filters + export buttons + job polling, admin Valuation pages.
+- [ ] Tests: dashboard aggregates vs ledger, GST report net quantities after refunds, valuation reconciles with the drift check, admin-only enforcement server-side, export job flow.
 
-Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), file attachments app (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).
+Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), purchase/sale file attachments (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).

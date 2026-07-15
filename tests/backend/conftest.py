@@ -13,6 +13,9 @@ PASSWORD = "pass12345"
 def make_user(db):
     def _make(role, username=None, **kwargs):
         username = username or f"{role.lower()}_user"
+        existing = User.objects.filter(username=username).first()
+        if existing is not None:
+            return existing
         return User.objects.create_user(
             username=username, password=PASSWORD, role=role, **kwargs
         )

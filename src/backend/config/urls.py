@@ -6,7 +6,11 @@ from rest_framework.routers import DefaultRouter
 from apps.accounts.views import LoginView, LogoutView, MeView, UserViewSet
 from apps.audits.views import AuditLogViewSet
 from apps.core.views import health
-from apps.inventory.views import StockBalanceViewSet, StockLedgerViewSet
+from apps.inventory.views import (
+    StockAdjustmentViewSet,
+    StockBalanceViewSet,
+    StockLedgerViewSet,
+)
 from apps.masterdata.views import (
     CategoryViewSet,
     CurrencyViewSet,
@@ -18,6 +22,7 @@ from apps.masterdata.views import (
 )
 from apps.products.views import ProductViewSet
 from apps.purchases.views import PurchaseViewSet
+from apps.sales.views import SaleViewSet
 from apps.shipments.views import ShipmentViewSet
 
 router = DefaultRouter()
@@ -32,6 +37,8 @@ router.register("customers", CustomerViewSet)
 router.register("products", ProductViewSet)
 router.register("purchases", PurchaseViewSet)
 router.register("shipments", ShipmentViewSet)
+router.register("sales", SaleViewSet)
+router.register("stock-adjustments", StockAdjustmentViewSet)
 router.register("stock/ledger", StockLedgerViewSet, basename="stock-ledger")
 router.register("stock/balances", StockBalanceViewSet, basename="stock-balances")
 router.register("audit", AuditLogViewSet)

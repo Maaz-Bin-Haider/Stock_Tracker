@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from apps.core.models import CompanyScopedModel
+from apps.core.models import CompanyScopedModel, SoftDeleteModel, TimeStampedModel
 from apps.masterdata.models import Location
 from apps.products.models import Product
 
@@ -88,6 +88,36 @@ class StockLedgerEntry(CompanyScopedModel):
     @property
     def net_qty(self):
         return self.qty_in - self.qty_out
+
+
+class AdjustmentType(models.TextChoices):
+    """Direction of a manual correction; the reason field carries the why
+    (count correction, damaged, lost, extra found — SYSTEM_SPEC §13)."""
+
+    INCREASE = "INCREASE", "Increase (extra stock found, count correction up)"
+    DECREASE = "DECREASE", "Decrease (damaged, lost, count correction down)"
+
+
+class StockAdjustment(TimeStampedModel, CompanyScopedModel, SoftDeleteModel):
+    """Manual stock adjustment (FR-074…FR-077): ±PHYSICAL at the location via
+    the ledger, valued at the location's carrying average; a reason is
+    mandatory and everything is audited."""
+
+    adjustment_date = models.DateField(db_index=True)
+    location = models.ForeignKey(Location, on_delete=models.PROTECT, related_name="adjustments")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="adjustments")
+    adjustment_type = models.CharField(max_length=16, choices=AdjustmentType.choices)
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    reason = models.TextField()
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-adjustment_date", "-id"]
+        indexes = [models.Index(fields=["location", "adjustment_date"])]
+
+    def __str__(self):
+        sign = "+" if self.adjustment_type == AdjustmentType.INCREASE else "-"
+        return f"Adjustment {sign}{self.quantity} {self.product} @ {self.location}"
 
 
 class StockBalance(CompanyScopedModel):

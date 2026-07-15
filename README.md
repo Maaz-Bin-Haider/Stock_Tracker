@@ -71,4 +71,4 @@ CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, 
 
 ## Current Status
 
-Phases M0–M4 are done: scaffolding; auth + role matrix, master data, products, and the audit foundation; the stock ledger core with purchases and collection; purchase refunds/cancellations; and shipments + receiving (including the Dubai→Karachi transfer). Next phase is M5: sales and stock adjustments (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
+Phases M0–M5 are done: scaffolding; auth + role matrix, master data, products, and the audit foundation; the stock ledger core with purchases and collection; purchase refunds/cancellations; shipments + receiving (including the Dubai→Karachi transfer); and sales + stock adjustments. Next phase is M6: dashboard, reports, Excel/PDF exports, and admin stock valuation (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
