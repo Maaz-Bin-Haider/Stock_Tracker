@@ -18,6 +18,7 @@ from apps.masterdata.views import (
 )
 from apps.products.views import ProductViewSet
 from apps.purchases.views import PurchaseViewSet
+from apps.shipments.views import ShipmentViewSet
 
 router = DefaultRouter()
 router.register("users", UserViewSet)
@@ -30,6 +31,7 @@ router.register("suppliers", SupplierViewSet)
 router.register("customers", CustomerViewSet)
 router.register("products", ProductViewSet)
 router.register("purchases", PurchaseViewSet)
+router.register("shipments", ShipmentViewSet)
 router.register("stock/ledger", StockLedgerViewSet, basename="stock-ledger")
 router.register("stock/balances", StockBalanceViewSet, basename="stock-balances")
 router.register("audit", AuditLogViewSet)

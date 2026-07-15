@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M3 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations). Next: M4 shipments + receiving.
+- Implementation status: phases M0–M4 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi). Next: M5 sales + stock adjustments.
 
 ## Current Project Structure
 
@@ -102,6 +102,20 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
+### 2026-07-15 (M4)
+
+- Completed phase M4 (shipments + receiving, incl. Dubai→Karachi), verified end-to-end through nginx with zero ledger drift:
+  - `apps/shipments`: `Shipment` (auto `shipment_no` "SH-000001"-style, `shipment_type` STANDARD | DUBAI_KARACHI per FR-065, shipping cost recorded but excluded from stock value per FR-119, no currency per FR-066) + `ShipmentLine`, `ShipmentReceipt` + `ShipmentReceiptLine`. `shipped_at`/`cancelled_at` record events set only by the ship/cancel services; statuses (draft/shipped/partially received/fully received/cancelled, FR-060) and received/remaining/`over_received` are always computed, never stored.
+  - Ledger mapping (§5.2): ship → −PHYSICAL @ from-location / +IN_TRANSIT @ to-location; receipt → −IN_TRANSIT/+PHYSICAL @ to-location; cancel → reversal of each line's unreceived in-transit remainder back to source physical (received stock stays); receipt undo and shipment soft delete reverse the shipment's own ledger rows exactly. All postings via `post_event`, audited in-transaction (modules `shipments`, `shipment_receipts`).
+  - Valuation: value moves at the source location's carrying average cost read from `stock_balances` (§5.3.1) — the first flow consuming carrying value rather than line-frozen values. Proportional-remainder sharing (with a running per-product pool for multi-line shipments) empties buckets to exactly zero value; receipts draw value from the line's in-transit ledger remainder, so over-received quantity beyond the remainder carries no extra value (value is conserved end to end).
+  - Warnings: negative source stock on ship requires `confirm_negative` (FR-083, same retry contract as purchases); over-receiving is allowed — IN_TRANSIT goes negative for the line and the computed `over_received` flag drives highlighting (FR-084/FR-085).
+  - Lifecycle rules: drafts post nothing and are freely editable; once shipped, lines are locked (cancel and re-enter to change them) and only header fields may change; cancelling a fully received shipment is rejected; delete reverses every row the shipment ever posted and soft-deletes receipts/lines with it.
+  - API: `/api/v1/shipments/` CRUD with quick totals (shipped/received/remaining, FR-103), `POST /shipments/{id}/ship/`, `POST /shipments/{id}/cancel/`, `POST/GET /shipments/{id}/receipts/`, `DELETE /shipments/{id}/receipts/{rid}/`; `ship: true` on create ships immediately. Admin + purchase users write, all roles read (Batch 9 decision).
+  - Frontend: Shipments page — list with quick totals and over-received badges, expandable lines + receipt history with Undo, draft/ship/receive/cancel/delete actions, create/edit modal with Save Draft vs Save & Ship, receive dialog with per-line quantities, over-receive confirmation, and negative-stock retry. Nav + permissions mirror updated.
+  - Tests: 116 passing (19 new — draft posts nothing, draft editable vs shipped locked, carrying-average ship, exact pool emptying incl. multi-line same product, negative-stock confirmation, Dubai→Karachi type, partial/full/over receive, receive-before-ship rejected, receipt undo, cancel draft/partial/fully-received, delete restores everything, role matrix, quick totals; reconciliation asserted in every scenario).
+- Files: `src/backend/apps/shipments/{models,services,serializers,views}.py` + migration 0001, `src/backend/config/urls.py`, `src/frontend/app/(app)/shipments/page.tsx`, `src/frontend/app/(app)/layout.tsx`, `src/frontend/lib/permissions.ts`, `tests/backend/test_shipments.py`.
+- Next recommended step: **Phase M5 — sales + stock adjustments** per TECHNICAL_ARCHITECTURE §15: `Sale` + `SaleLine` (location validated against `is_sales_location`, customer tracking, optional reference-only sale price, FR-067…FR-072), `StockAdjustment` (required reason, ±PHYSICAL, admin-only per §6 matrix, FR-074…FR-077), ledger rows −PHYSICAL @ sale location at carrying average, negative-stock confirmation on sale (FR-083), edit/delete reversals, sale-user role coverage, Sales + Adjustments pages.
+
 ### 2026-07-06 (later — M3)
 
 - Completed phase M3 (purchase refunds/cancellations), verified end-to-end through nginx with zero ledger drift:
@@ -191,14 +205,13 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M4 — shipments + receiving (incl. Dubai→Karachi).** M0–M3 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15 and SYSTEM_SPEC §11:
+**TODO (next session): Phase M5 — sales + stock adjustments.** M0–M4 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §5.2/§15, SYSTEM_SPEC §12/§13, and SRS FR-067…FR-077:
 
-- [ ] `Shipment` + `ShipmentLine` + receipt models; header fields per FR-058 (shipment type distinguishes the Dubai→Karachi transfer flow), shipping cost recorded but excluded from stock value (FR-119).
-- [ ] Statuses computed, never stored: draft / shipped / partially received / fully received / cancelled (FR-060).
-- [ ] Ledger rows: ship → −PHYSICAL @ from-location, +IN_TRANSIT @ to-location; receipt → −IN_TRANSIT/+PHYSICAL @ to-location; cancel → reversal of unreceived quantities. Value moves at the source location's carrying average cost from `stock_balances` (§5.3.1) — the first flow consuming carrying value rather than line-frozen values.
-- [ ] Negative-stock confirmation on shipping (FR-083); over-receiving allowed with warning, IN_TRANSIT may go negative for the line, flag `over_received` drives highlighting (§5.2 note, FR-084/FR-085).
-- [ ] Endpoints per §6: `/api/v1/shipments/`, `/api/v1/shipments/{id}/receipts/`; admin + purchase users write (Batch 9 decision).
-- [ ] Frontend: Shipments page + receiving flow; in-transit visibility.
-- [ ] Tests: ship/receive/partial/over-receive/cancel, Dubai→Karachi, valuation-at-carrying-average, reconciliation.
+- [ ] `Sale` + `SaleLine`: sale number/reference, sale date, location validated against `is_sales_location` (Dubai/Karachi only, FR-068), customer FK, optional reference-only sale price (never for profit, FR-070), notes. Sale users get CRUD (their first write module — exercise the role matrix carefully).
+- [ ] `StockAdjustment`: date, location, product, adjustment type, quantity, required reason (FR-075); admin-only writes per SYSTEM_SPEC §6.
+- [ ] Ledger rows: sale → −PHYSICAL @ sale location; adjustment → ±PHYSICAL @ location; both remove/add value at the location's carrying average (§5.3.1); edits → reversal + fresh rows; deletes → reversal rows only.
+- [ ] Negative-stock confirmation on sale (FR-083); sale users cannot create products (FR-017).
+- [ ] Frontend: Sales page (customer, per-line quantities, optional price) + Stock Adjustments page; nav + permissions mirror.
+- [ ] Tests: sale entry/edit/delete reversals, non-sales-location rejection, carrying-average value removal, adjustment reason required, role matrix (sale user especially), reconciliation everywhere.
 
 Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), file attachments app (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).
