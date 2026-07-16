@@ -22,6 +22,13 @@ from apps.masterdata.views import (
 )
 from apps.products.views import ProductViewSet
 from apps.purchases.views import PurchaseViewSet
+from apps.reports.views import (
+    DashboardView,
+    ExportCreateView,
+    ExportJobViewSet,
+    ReportDataView,
+    ReportIndexView,
+)
 from apps.sales.views import SaleViewSet
 from apps.shipments.views import ShipmentViewSet
 
@@ -49,6 +56,26 @@ urlpatterns = [
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),
+    # Fixed report paths must precede the <slug:key> catch-all.
+    path("api/v1/reports/dashboard/", DashboardView.as_view(), name="reports-dashboard"),
+    path(
+        "api/v1/reports/exports/",
+        ExportJobViewSet.as_view({"get": "list"}),
+        name="report-exports",
+    ),
+    path(
+        "api/v1/reports/exports/<int:pk>/",
+        ExportJobViewSet.as_view({"get": "retrieve"}),
+        name="report-export-detail",
+    ),
+    path(
+        "api/v1/reports/exports/<int:pk>/download/",
+        ExportJobViewSet.as_view({"get": "download"}),
+        name="report-export-download",
+    ),
+    path("api/v1/reports/", ReportIndexView.as_view(), name="reports-index"),
+    path("api/v1/reports/<slug:key>/", ReportDataView.as_view(), name="report-data"),
+    path("api/v1/reports/<slug:key>/export/", ExportCreateView.as_view(), name="report-export"),
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
     path("api/v1/", include(router.urls)),

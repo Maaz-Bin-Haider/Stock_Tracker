@@ -184,9 +184,10 @@ Rules enforced here, nowhere else:
 
 ## 8. Reports and Exports
 
-- Each report in SRS §5 is a read-only DRF endpoint over annotated querysets (or plain SQL views where aggregation is heavy — Australia combined stock, GST report).
-- The GST report queries purchase lines joined to their refund lines and ledger GST reversals, computing net quantity and net GST per line (SRS §5.1).
-- **Exports run in Celery**: the export endpoint validates filters, enqueues a task, and returns a job id; the task renders Excel (`openpyxl`) or PDF (WeasyPrint, clean light theme per FR-101), saves the file through the `attachments` storage backend, and the UI polls/downloads. Exports contain exactly the filtered dataset (FR-098).
+- Every SRS §5 report is one `Report` in a single registry (`apps/reports/builders.py`): a declared filter vocabulary plus a build function returning sections of plain-value rows. The JSON endpoint, the Excel renderer, and the PDF renderer all consume the same result, so exports always match the on-screen dataset (FR-098).
+- The GST report queries purchase lines joined to their refund lines, computing net quantity and net GST per line from the values frozen at entry/refund time (SRS §5.1) — never by summing `gst_value` across ledger rows (bucket-movement rows carry GST for bookkeeping only).
+- **Exports run in Celery**: the export endpoint validates filters, records an `ExportJob` (report key + params + format), enqueues a task, and returns the job; the task replays the report build and renders Excel (`openpyxl`) or PDF (ReportLab, clean light theme per FR-101), and the UI polls/downloads. ReportLab replaced the originally planned WeasyPrint because it is pure Python — no pango/cairo system libraries, so the slim Docker image and the host test venv both work unchanged.
+- Export files are stored **outside** `MEDIA_ROOT` (`EXPORTS_ROOT`, swapped to a private S3 prefix in deployment): nginx serves `/media` publicly, but exports — including admin-only valuation files (FR-116/FR-123) — must only be reachable through the authenticated download endpoint. Users see their own jobs; admins see all.
 
 ## 9. Frontend (Next.js + TypeScript)
 

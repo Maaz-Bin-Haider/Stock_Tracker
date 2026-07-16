@@ -97,6 +97,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Generated report exports live OUTSIDE MEDIA_ROOT on purpose: nginx serves
+# /media publicly, but exports (incl. admin-only valuation, FR-116) must only
+# be reachable through the authenticated download endpoint.
+EXPORTS_ROOT = BASE_DIR / "exports"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {

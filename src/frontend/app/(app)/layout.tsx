@@ -17,6 +17,8 @@ const NAV: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/sales", label: "Sales" },
   { href: "/stock-ledger", label: "Stock Ledger" },
   { href: "/stock-adjustments", label: "Stock Adjustments" },
+  { href: "/reports", label: "Reports" },
+  { href: "/valuation", label: "Stock Valuation", adminOnly: true },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/customers", label: "Customers" },
   { href: "/settings/categories", label: "Categories" },

@@ -765,6 +765,7 @@ erDiagram
     locations ||--o{ stock_ledger : ledger_location
     users ||--o{ audit_logs : performs
     users ||--o{ file_attachments : uploads
+    users ||--o{ export_jobs : requests
     currencies ||--o{ exchange_rates : has
     locations ||--o{ gst_rates : has
 
@@ -1037,6 +1038,19 @@ erDiagram
         string device_info
         datetime created_at
     }
+
+    export_jobs {
+        bigint id PK
+        string report_key
+        json params "the filters the export was requested with"
+        string format "XLSX or PDF"
+        string status "PENDING RUNNING DONE FAILED"
+        string file "private storage path or object key"
+        text error
+        bigint created_by FK
+        datetime created_at
+        datetime finished_at
+    }
 ```
 
 ### 5.2 Table Design Notes
@@ -1124,6 +1138,12 @@ Stock reports should be calculated from this table or from stock balances reconc
 Stores user activity.
 
 Must include create, update, delete, login, settings changes, product creation, party creation, refund/cancellation, and other important actions.
+
+#### export_jobs
+
+Tracks queued report exports (Excel/PDF) processed by the background worker.
+
+The stored `params` are replayed when the file is generated, so the export contains exactly the filtered dataset the user requested. Files live in private storage (never the public media folder) and are downloadable only through the authenticated export endpoint; admin-only valuation exports stay admin-only end to end.
 
 ## 6. Recommended Diagram File Split
 

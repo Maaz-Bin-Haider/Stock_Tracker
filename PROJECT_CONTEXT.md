@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M5 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments). Next: M6 dashboard + reports + exports + stock valuation.
+- Implementation status: phases M0–M6 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation). Next: M7 hardening.
 
 ## Current Project Structure
 
@@ -101,6 +101,18 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-16 (M6)
+
+- Completed phase M6 (dashboard + reports + Excel/PDF exports + admin stock valuation), verified end-to-end through nginx with the real Celery worker:
+  - `apps/reports` report registry (`builders.py`): every SRS §5 report as a `Report` (declared filters + build function returning `Section`s of plain rows) consumed identically by the JSON endpoint and both export renderers, so exports always contain exactly the filtered dataset (FR-098). Reports: current stock by location, total company stock (AED value column admin-only, stripped server-side), Australia combined (dynamic per-AU-city columns over `region_group`), Dubai/Karachi stock (sold-today in Dubai business time), pending purchase stock (+ by-location rollup), in-transit stock, purchase + party-wise purchase, sales + party-wise sales, GST report (SRS §5.1: net qty/net GST from purchase/refund-line frozen values — never ledger `gst_value` sums), refund/cancellation, stock ledger, stock adjustments, user activity, and admin-only valuation summary (multi-section: by bucket/location/category/top products) + detail (weighted average `value_aed / quantity` per product/location per bucket). The Upload/File report is deferred with the attachments feature (FR-104…FR-107) — nothing to report yet.
+  - Dashboard endpoint (`/api/v1/reports/dashboard/`, FR-094…FR-096): live cards read `stock_balances`; `?cutoff=` rebuilds the same figures from the ledger with `txn_at <= cutoff` (naive cutoffs interpreted as Dubai time); GST total = purchase-line GST minus refund reversals with soft-delete windows honoured at the cutoff; today's sales bounded by the Dubai business day (FR-128 via `apps/core/time.py`).
+  - Export pipeline: `ExportJob` model (report key + params + format + status + file) + Celery task that replays the stored params; Excel via openpyxl (sheet per section, styled headers, number formats, frozen panes), PDF via **ReportLab** (landscape A4, light professional theme, content-aware column widths) — ReportLab replaces the originally planned WeasyPrint because it needs no pango/cairo system libraries (host venv tests + slim Docker image both work). Files live in `EXPORTS_ROOT` **outside** MEDIA_ROOT (nginx serves /media publicly) and download only through the authenticated endpoint; users see their own jobs, admins all; valuation data/exports are admin-only server-side at every step (FR-115…FR-123). Endpoints: `GET /api/v1/reports/`, `GET /api/v1/reports/{key}/`, `POST /api/v1/reports/{key}/export/`, `GET /api/v1/reports/exports/{id}[/download/]`.
+  - Frontend: live Dashboard page (cards: total/pending/in-transit/GST/today's sales + per-sales-location, stock-by-location table, past-cutoff datetime picker with snapshot banner); `/reports` page (report picker + per-report filter controls + section tables + totals bar + Excel/PDF export buttons with job polling and auto-download); `/valuation` admin page (summary/detail tabs on the same machinery); shared `components/report-view.tsx`; nav entries (Stock Valuation admin-only).
+  - Tests: 180 passing (45 new across `test_dashboard.py`, `test_reports.py`, `test_report_exports.py`) — dashboard live vs cutoff snapshot vs ledger, GST netting after pending-cancel + received-refund, valuation totals surviving `rebuild_stock_balances`, admin-only enforcement on valuation data + exports + value columns (JSON and generated files), export job lifecycle incl. failure capture and cross-user isolation. `config/settings/test.py` (eager Celery + temp exports dir) now drives pytest.
+- Files: `src/backend/apps/reports/{definitions,filters,builders,dashboard,models,rendering,serializers,tasks,views}.py` + migration 0001, `config/{urls.py,settings/{base,test}.py}`, `pyproject.toml` (+openpyxl, +reportlab), root `pytest.ini`/`.gitignore`, `src/frontend/components/report-view.tsx`, `src/frontend/app/(app)/{page,reports/page,valuation/page}.tsx`, `src/frontend/app/(app)/layout.tsx`, `tests/backend/{conftest,test_dashboard,test_reports,test_report_exports}.py`, docs (`TECHNICAL_ARCHITECTURE.md` §8, `SYSTEM_SPEC.md` §24, `SYSTEM_DIAGRAMS.md` ER + table notes).
+- New open item: the frontend polls exports inline; an exports-history page (list of past export jobs with re-download) can ride along with M7 hardening if wanted.
+- Next recommended step: **Phase M7 — hardening** per TECHNICAL_ARCHITECTURE §15: audit review, mismatch highlighting pass, responsive/theming pass (FR-124…FR-127, SRS §7.6 — the dedicated dark palette and viewport testing are still outstanding), richer seed data, purchase/sale file attachments (FR-035/FR-073, unlocks the Upload/File report), pagination controls on list pages, and the SRS §12 acceptance run.
 
 ### 2026-07-15 (later — M5)
 
@@ -217,13 +229,12 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M6 — dashboard + reports + exports + admin stock valuation.** M0–M5 are done and verified. Per `TECHNICAL_ARCHITECTURE.md` §8/§15 and SRS §5:
+**TODO (next session): Phase M7 — hardening.** M0–M6 are done and verified (180 backend tests, ruff/eslint/tsc clean, exports exercised through nginx + the real Celery worker). Per `TECHNICAL_ARCHITECTURE.md` §15 and SRS §12:
 
-- [ ] Dashboard endpoint + page: live cards (total company stock, stock by location, pending, in-transit, Dubai/Karachi stock, GST total, today's sales in Dubai time — FR-094/FR-095) reading `stock_balances`; past-cutoff snapshot aggregating the ledger with `txn_at <= cutoff` (FR-096). Use `apps/core/time.py` helpers for every "today" boundary (FR-128).
-- [ ] Reports (`apps/reports`, read-only endpoints over annotated querysets): the SRS §5 list — current stock by location, total company stock, Australia combined (calculated view over `region_group`), Dubai/Karachi stock, pending purchase stock (+ by location), in-transit, purchase/sales reports, party-wise records, GST report (per SRS §5.1: purchase lines joined to refund lines; net qty and net GST from line-frozen values — never ledger gst sums), refund/cancellation report, ledger + adjustment reports, user activity, upload/file report.
-- [ ] Admin-only stock valuation summary/detail (FR-115…FR-123) reading `stock_balances` (`value_aed / quantity` = weighted average unit cost), behind the `valuation` ROLE_MATRIX entry.
-- [ ] Excel (openpyxl) / PDF (WeasyPrint, light professional theme per FR-101) exports via Celery: endpoint validates filters, enqueues, returns job id; files stored via the `attachments` app (FR-104…FR-107); exports contain exactly the filtered dataset (FR-098). The worker container already runs.
-- [ ] Frontend: Dashboard page (cards + past-cutoff picker), Reports section with filters + export buttons + job polling, admin Valuation pages.
-- [ ] Tests: dashboard aggregates vs ledger, GST report net quantities after refunds, valuation reconciles with the drift check, admin-only enforcement server-side, export job flow.
+- [ ] Theming (FR-124…FR-127): semantic color tokens + the separately designed dark palette with a user-remembered toggle — nothing themed yet, pages use raw Tailwind slate/blue classes.
+- [ ] Responsive pass (SRS §7.6): sidebar → rail/drawer on tablets, DataTable column priorities per breakpoint, the target-viewport checks (desktop, small laptop, iPad, small tablet, phone).
+- [ ] Purchase/sale file attachments (`apps/attachments`, FR-035/FR-073/FR-104…FR-107) — also unlocks the deferred Upload/File report in the report registry.
+- [ ] Mismatch/warning highlighting review across pages (SRS §15), pagination controls on list pages (they show the first API page), an exports-history view (jobs API already lists per-user history).
+- [ ] Richer seed data + full SRS §12 acceptance run; audit review.
 
-Deferred small items (fold into a later milestone): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), purchase/sale file attachments (FR-035/FR-073), pagination controls on the new list pages (they currently show the first API page).
+Deferred small items (unchanged): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9).

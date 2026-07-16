@@ -939,6 +939,7 @@ Core tables:
 - stock_adjustments
 - stock_ledger
 - file_attachments
+- export_jobs
 - audit_logs
 - app_settings
 

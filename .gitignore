@@ -37,6 +37,8 @@ data/exports/*
 src/backend/media/*
 !src/backend/media/.gitkeep
 src/backend/staticfiles/
+# Generated report exports (private, served only via the authenticated API)
+src/backend/exports/
 
 # TypeScript
 *.tsbuildinfo
