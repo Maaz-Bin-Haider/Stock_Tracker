@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 
+import Pagination from "@/components/pagination";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
@@ -70,18 +71,18 @@ interface ListResponse {
 const emptyLine = (): LineForm => ({ product: "", quantity: "", notes: "" });
 
 const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-slate-100 text-slate-600",
-  SHIPPED: "bg-amber-50 text-amber-700",
-  PARTIALLY_RECEIVED: "bg-blue-50 text-blue-700",
-  FULLY_RECEIVED: "bg-green-50 text-green-700",
-  CANCELLED: "bg-slate-100 text-slate-500",
+  DRAFT: "bg-surface-2 text-ink-2",
+  SHIPPED: "bg-warning-soft text-warning",
+  PARTIALLY_RECEIVED: "bg-primary-soft text-primary",
+  FULLY_RECEIVED: "bg-success-soft text-success",
+  CANCELLED: "bg-surface-2 text-muted",
 };
 
 function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-        STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600"
+        STATUS_STYLES[status] ?? "bg-surface-2 text-ink-2"
       }`}
     >
       {status.replaceAll("_", " ")}
@@ -121,6 +122,7 @@ export default function ShipmentsPage() {
 
   const [rows, setRows] = useState<Shipment[]>([]);
   const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [totals, setTotals] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -151,12 +153,15 @@ export default function ShipmentsPage() {
   const [locations, setLocations] = useState<Option[]>([]);
 
   const load = useCallback(async () => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (page > 1) params.set("page", String(page));
+    const query = params.size ? `?${params}` : "";
     const data = await api<ListResponse>(`/api/v1/shipments/${query}`);
     setRows(data.results);
     setCount(data.count);
     setTotals(data.totals ?? {});
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => {
     load().catch((err) => setError(errorMessage(err)));
@@ -376,23 +381,23 @@ export default function ShipmentsPage() {
   }
 
   const inputCls =
-    "w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
+    "w-full rounded border border-edge px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Shipments</h1>
-        <span className="text-sm text-slate-500">{count} shipments</span>
+        <span className="text-sm text-muted">{count} shipments</span>
         <div className="ml-auto flex items-center gap-2">
           <input
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded border border-edge px-3 py-1.5 text-sm"
             placeholder="Search shipment #, product…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
           {writable && (
             <button
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
               onClick={openCreate}
             >
               New Shipment
@@ -407,18 +412,18 @@ export default function ShipmentsPage() {
           ["Received", totals.total_received],
           ["In transit / remaining", totals.total_remaining],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-            <div className="text-xs uppercase text-slate-500">{label}</div>
+          <div key={label} className="rounded-lg border border-edge bg-surface px-4 py-3">
+            <div className="text-xs uppercase text-muted">{label}</div>
             <div className="text-lg font-semibold">{value ?? "—"}</div>
           </div>
         ))}
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Shipment #</th>
               <th className="px-4 py-2.5 font-medium">Date</th>
@@ -433,14 +438,14 @@ export default function ShipmentsPage() {
             {rows.map((shipment) => (
               <Fragment key={shipment.id}>
                 <tr
-                  className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                  className="cursor-pointer border-b border-edge-2 last:border-0 hover:bg-surface-2"
                   onClick={() => toggleExpand(shipment)}
                 >
                   <td className="px-4 py-2 font-medium">
                     {shipment.shipment_no}
                     {shipment.lines.some((line) => line.over_received) && (
                       <span
-                        className="ml-2 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700"
+                        className="ml-2 inline-block rounded bg-warning-soft px-1.5 py-0.5 text-xs font-medium text-warning"
                         title="One or more lines received more than was shipped"
                       >
                         over-received
@@ -466,7 +471,7 @@ export default function ShipmentsPage() {
                         {shipment.status === "DRAFT" && (
                           <>
                             <button
-                              className="text-blue-700 hover:underline"
+                              className="text-primary hover:underline"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 shipNow(shipment).catch((err) => setError(errorMessage(err)));
@@ -475,7 +480,7 @@ export default function ShipmentsPage() {
                               Ship
                             </button>
                             <button
-                              className="ml-3 text-blue-700 hover:underline"
+                              className="ml-3 text-primary hover:underline"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openEdit(shipment);
@@ -489,7 +494,7 @@ export default function ShipmentsPage() {
                           shipment.status === "PARTIALLY_RECEIVED" ||
                           shipment.status === "FULLY_RECEIVED") && (
                           <button
-                            className="text-blue-700 hover:underline"
+                            className="text-primary hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
                               openReceive(shipment);
@@ -502,7 +507,7 @@ export default function ShipmentsPage() {
                           shipment.status === "PARTIALLY_RECEIVED" ||
                           shipment.status === "DRAFT") && (
                           <button
-                            className="ml-3 text-slate-600 hover:underline"
+                            className="ml-3 text-ink-2 hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
                               cancelShipment(shipment);
@@ -512,7 +517,7 @@ export default function ShipmentsPage() {
                           </button>
                         )}
                         <button
-                          className="ml-3 text-red-600 hover:underline"
+                          className="ml-3 text-danger hover:underline"
                           onClick={(e) => {
                             e.stopPropagation();
                             remove(shipment);
@@ -525,10 +530,10 @@ export default function ShipmentsPage() {
                   </td>
                 </tr>
                 {expanded === shipment.id && (
-                  <tr className="border-b border-slate-100">
-                    <td colSpan={7} className="bg-slate-50 px-6 py-3">
+                  <tr className="border-b border-edge-2">
+                    <td colSpan={7} className="bg-surface-2 px-6 py-3">
                       <table className="w-full text-xs">
-                        <thead className="text-slate-500">
+                        <thead className="text-muted">
                           <tr>
                             <th className="py-1 pr-3 text-left font-medium">Product</th>
                             <th className="py-1 pr-3 text-right font-medium">Shipped</th>
@@ -541,14 +546,14 @@ export default function ShipmentsPage() {
                           {shipment.lines.map((line) => (
                             <tr
                               key={line.id}
-                              className={`border-t border-slate-200 ${
-                                line.over_received ? "bg-orange-50" : ""
+                              className={`border-t border-edge ${
+                                line.over_received ? "bg-warning-soft" : ""
                               }`}
                             >
                               <td className="py-1.5 pr-3">
                                 {line.product_name}
                                 {line.over_received && (
-                                  <span className="ml-2 font-medium text-orange-700">
+                                  <span className="ml-2 font-medium text-warning">
                                     over-received
                                   </span>
                                 )}
@@ -558,7 +563,7 @@ export default function ShipmentsPage() {
                               <td
                                 className={`py-1.5 pr-3 text-right ${
                                   Number(line.remaining) < 0
-                                    ? "font-medium text-orange-700"
+                                    ? "font-medium text-warning"
                                     : ""
                                 }`}
                               >
@@ -573,21 +578,21 @@ export default function ShipmentsPage() {
                       </table>
 
                       {shipment.cancel_reason && (
-                        <p className="mt-2 text-xs text-slate-500">
+                        <p className="mt-2 text-xs text-muted">
                           Cancelled: {shipment.cancel_reason}
                         </p>
                       )}
 
-                      <h3 className="mt-3 mb-1 text-xs font-semibold text-slate-600">
+                      <h3 className="mt-3 mb-1 text-xs font-semibold text-ink-2">
                         Receipts
                       </h3>
                       {(receipts[shipment.id] ?? []).length === 0 ? (
-                        <p className="text-xs text-slate-400">Nothing received yet</p>
+                        <p className="text-xs text-faint">Nothing received yet</p>
                       ) : (
                         <table className="w-full text-xs">
                           <tbody>
                             {(receipts[shipment.id] ?? []).map((receipt) => (
-                              <tr key={receipt.id} className="border-t border-slate-200">
+                              <tr key={receipt.id} className="border-t border-edge">
                                 <td className="py-1.5 pr-3">{receipt.receipt_date}</td>
                                 <td className="py-1.5 pr-3">
                                   {receipt.lines.map((line) => (
@@ -602,7 +607,7 @@ export default function ShipmentsPage() {
                                 {writable && (
                                   <td className="py-1.5 text-right">
                                     <button
-                                      className="text-red-600 hover:underline"
+                                      className="text-danger hover:underline"
                                       onClick={() => undoReceipt(shipment, receipt)}
                                     >
                                       Undo
@@ -621,7 +626,7 @@ export default function ShipmentsPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={7}>
+                <td className="px-4 py-6 text-center text-faint" colSpan={7}>
                   No shipments
                 </td>
               </tr>
@@ -630,6 +635,8 @@ export default function ShipmentsPage() {
         </table>
       </div>
 
+      <Pagination page={page} count={count} onPage={setPage} />
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
@@ -637,7 +644,7 @@ export default function ShipmentsPage() {
               e.preventDefault();
               submit(false);
             }}
-            className="max-h-full w-full max-w-3xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-full w-full max-w-3xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
           >
             <h2 className="mb-4 text-lg font-semibold">
               {editing ? `Edit ${editing.shipment_no}` : "New Shipment"}
@@ -645,8 +652,8 @@ export default function ShipmentsPage() {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Shipment date <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Shipment date <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -657,8 +664,8 @@ export default function ShipmentsPage() {
                 />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  From location <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  From location <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -675,8 +682,8 @@ export default function ShipmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  To location <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  To location <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -693,7 +700,7 @@ export default function ShipmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">Type</span>
+                <span className="mb-1 block font-medium text-ink-2">Type</span>
                 <select
                   className={inputCls}
                   value={header.shipment_type}
@@ -704,7 +711,7 @@ export default function ShipmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
+                <span className="mb-1 block font-medium text-ink-2">
                   Shipping cost (excluded from stock value)
                 </span>
                 <input
@@ -721,11 +728,11 @@ export default function ShipmentsPage() {
 
             <div className="mt-5">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-700">Product lines</h3>
+                <h3 className="text-sm font-semibold text-ink-2">Product lines</h3>
                 {(!editing || editing.status === "DRAFT") && (
                   <button
                     type="button"
-                    className="text-sm text-blue-700 hover:underline"
+                    className="text-sm text-primary hover:underline"
                     onClick={() => setLines([...lines, emptyLine()])}
                   >
                     + Add line
@@ -736,10 +743,10 @@ export default function ShipmentsPage() {
                 {lines.map((line, index) => (
                   <div
                     key={line.id ?? `new-${index}`}
-                    className="grid gap-2 rounded border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-4"
+                    className="grid gap-2 rounded border border-edge p-3 sm:grid-cols-2 lg:grid-cols-4"
                   >
                     <label className="block text-xs lg:col-span-2">
-                      <span className="mb-1 block font-medium text-slate-600">Product *</span>
+                      <span className="mb-1 block font-medium text-ink-2">Product *</span>
                       <select
                         className={inputCls}
                         required
@@ -759,7 +766,7 @@ export default function ShipmentsPage() {
                       </select>
                     </label>
                     <label className="block text-xs">
-                      <span className="mb-1 block font-medium text-slate-600">Qty *</span>
+                      <span className="mb-1 block font-medium text-ink-2">Qty *</span>
                       <input
                         className={inputCls}
                         type="number"
@@ -778,7 +785,7 @@ export default function ShipmentsPage() {
                       {lines.length > 1 && (
                         <button
                           type="button"
-                          className="text-xs text-red-600 hover:underline"
+                          className="text-xs text-danger hover:underline"
                           onClick={() => setLines(lines.filter((_, i) => i !== index))}
                         >
                           Remove
@@ -791,7 +798,7 @@ export default function ShipmentsPage() {
             </div>
 
             <label className="mt-4 block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Notes</span>
+              <span className="mb-1 block font-medium text-ink-2">Notes</span>
               <textarea
                 className={inputCls}
                 rows={2}
@@ -800,11 +807,11 @@ export default function ShipmentsPage() {
               />
             </label>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm"
+                className="rounded border border-edge px-4 py-1.5 text-sm"
                 onClick={() => setShowForm(false)}
               >
                 Cancel
@@ -812,7 +819,7 @@ export default function ShipmentsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded border border-blue-700 px-4 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                className="rounded border border-primary px-4 py-1.5 text-sm font-medium text-primary hover:bg-primary-soft disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save Draft"}
               </button>
@@ -820,7 +827,7 @@ export default function ShipmentsPage() {
                 <button
                   type="button"
                   disabled={saving}
-                  className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                  className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
                   onClick={() => submit(true)}
                 >
                   {saving ? "Saving…" : "Save & Ship"}
@@ -833,18 +840,18 @@ export default function ShipmentsPage() {
 
       {receiving && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+          <div className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl">
             <h2 className="mb-1 text-lg font-semibold">
               Receive {receiving.shipment_no}
             </h2>
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="mb-4 text-sm text-muted">
               {receiving.from_location_name} → {receiving.to_location_name}. Partial
               receiving is allowed; receiving more than remaining is flagged as
               over-received.
             </p>
 
             <table className="mb-4 w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+              <thead className="border-b border-edge text-xs uppercase text-muted">
                 <tr>
                   <th className="py-2 pr-3 font-medium">Product</th>
                   <th className="py-2 pr-3 text-right font-medium">Shipped</th>
@@ -855,7 +862,7 @@ export default function ShipmentsPage() {
               </thead>
               <tbody>
                 {receiving.lines.map((line) => (
-                  <tr key={line.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={line.id} className="border-b border-edge-2 last:border-0">
                     <td className="py-2 pr-3">{line.product_name}</td>
                     <td className="py-2 pr-3 text-right">{line.quantity}</td>
                     <td className="py-2 pr-3 text-right">{line.received}</td>
@@ -865,7 +872,7 @@ export default function ShipmentsPage() {
                         type="number"
                         step="any"
                         min="0"
-                        className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
+                        className="w-24 rounded border border-edge px-2 py-1 text-right text-sm focus:border-primary focus:outline-none"
                         value={receiveQty[line.id] ?? ""}
                         onChange={(e) =>
                           setReceiveQty((prev) => ({ ...prev, [line.id]: e.target.value }))
@@ -878,25 +885,25 @@ export default function ShipmentsPage() {
             </table>
 
             <label className="mb-4 block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Receipt date</span>
+              <span className="mb-1 block font-medium text-ink-2">Receipt date</span>
               <input
                 type="date"
-                className="rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                className="rounded border border-edge px-2 py-1.5 text-sm focus:border-primary focus:outline-none"
                 value={receiveDate}
                 onChange={(e) => setReceiveDate(e.target.value)}
               />
             </label>
 
-            {receiveError && <p className="mb-3 text-sm text-red-600">{receiveError}</p>}
+            {receiveError && <p className="mb-3 text-sm text-danger">{receiveError}</p>}
             <div className="flex justify-end gap-2">
               <button
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm"
+                className="rounded border border-edge px-4 py-1.5 text-sm"
                 onClick={() => setReceiving(null)}
               >
                 Cancel
               </button>
               <button
-                className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+                className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
                 onClick={submitReceive}
               >
                 Record Receipt

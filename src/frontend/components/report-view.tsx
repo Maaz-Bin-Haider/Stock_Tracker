@@ -222,7 +222,7 @@ export default function ReportView({ report }: { report: ReportMeta }) {
 
   function filterControl(name: string) {
     const value = filters[name] ?? "";
-    const base = "rounded border border-slate-300 px-2 py-1.5 text-sm bg-white";
+    const base = "rounded border border-edge px-2 py-1.5 text-sm bg-surface";
     if (name === "date_from" || name === "date_to") {
       return (
         <input type="date" className={base} value={value}
@@ -268,29 +268,29 @@ export default function ReportView({ report }: { report: ReportMeta }) {
   return (
     <div>
       {report.filters.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3">
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-edge bg-surface p-3">
           {report.filters.map((name) => (
-            <label key={name} className="flex flex-col gap-1 text-xs text-slate-500">
+            <label key={name} className="flex flex-col gap-1 text-xs text-muted">
               {FILTER_LABELS[name] ?? name}
               {filterControl(name)}
             </label>
           ))}
           {Object.values(filters).some((value) => value !== "") && (
             <button
-              className="rounded px-3 py-1.5 text-sm text-blue-700 hover:underline"
+              className="rounded px-3 py-1.5 text-sm text-primary hover:underline"
               onClick={() => setFilters({})}
             >
               Clear filters
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
-            {exportNote && <span className="text-xs text-slate-500">{exportNote}</span>}
+            {exportNote && <span className="text-xs text-muted">{exportNote}</span>}
             {(["XLSX", "PDF"] as const).map((format) => (
               <button
                 key={format}
                 disabled={exporting !== null}
                 onClick={() => startExport(format)}
-                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded border border-edge bg-surface px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-surface-2 disabled:opacity-50"
               >
                 {exporting === format ? "Exporting…" : `Export ${format === "XLSX" ? "Excel" : "PDF"}`}
               </button>
@@ -299,14 +299,14 @@ export default function ReportView({ report }: { report: ReportMeta }) {
         </div>
       )}
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-      {loading && !data && <p className="text-sm text-slate-400">Loading…</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+      {loading && !data && <p className="text-sm text-faint">Loading…</p>}
 
       {data && Object.keys(data.totals).length > 0 && (
         <div className="mb-4 flex flex-wrap gap-4">
           {Object.entries(data.totals).map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-slate-200 bg-white px-4 py-2">
-              <div className="text-xs text-slate-500">{label}</div>
+            <div key={label} className="rounded-lg border border-edge bg-surface px-4 py-2">
+              <div className="text-xs text-muted">{label}</div>
               <div className="text-base font-semibold">
                 {typeof value === "number"
                   ? formatCell(value, Number.isInteger(value) ? "qty" : "money")
@@ -318,7 +318,7 @@ export default function ReportView({ report }: { report: ReportMeta }) {
       )}
 
       {data?.truncated && (
-        <p className="mb-3 text-xs text-amber-700">
+        <p className="mb-3 text-xs text-warning">
           Showing the first rows only — export to Excel/PDF for the complete filtered dataset.
         </p>
       )}
@@ -326,11 +326,11 @@ export default function ReportView({ report }: { report: ReportMeta }) {
       {data?.sections.map((section) => (
         <div key={section.title} className="mb-6">
           {data.sections.length > 1 && (
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">{section.title}</h2>
+            <h2 className="mb-2 text-sm font-semibold text-ink-2">{section.title}</h2>
           )}
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
                 <tr>
                   {section.columns.map((column) => (
                     <th
@@ -346,7 +346,7 @@ export default function ReportView({ report }: { report: ReportMeta }) {
               </thead>
               <tbody>
                 {section.rows.map((row, index) => (
-                  <tr key={index} className="border-b border-slate-100 last:border-0">
+                  <tr key={index} className="border-b border-edge-2 last:border-0">
                     {section.columns.map((column) => {
                       const raw = row[column.key];
                       const negative =
@@ -357,7 +357,7 @@ export default function ReportView({ report }: { report: ReportMeta }) {
                           key={column.key}
                           className={`px-3 py-2 ${
                             NUMERIC_KINDS.has(column.kind) ? "text-right" : ""
-                          } ${negative ? "font-medium text-red-600" : ""}`}
+                          } ${negative ? "font-medium text-danger" : ""}`}
                         >
                           {formatCell(raw, column.kind)}
                         </td>
@@ -368,7 +368,7 @@ export default function ReportView({ report }: { report: ReportMeta }) {
                 {section.rows.length === 0 && (
                   <tr>
                     <td
-                      className="px-4 py-6 text-center text-slate-400"
+                      className="px-4 py-6 text-center text-faint"
                       colSpan={section.columns.length}
                     >
                       No data for the selected filters

@@ -1,19 +1,84 @@
 @import "tailwindcss";
 
 /*
- * Semantic design tokens (TECHNICAL_ARCHITECTURE §9.1).
+ * Semantic design tokens (TECHNICAL_ARCHITECTURE §9.1, FR-124…FR-127).
  * Components reference tokens only, never raw colors. The dark palette is a
- * separately designed token set (FR-125), not an inversion — it lands with the
- * theming milestone; only the light defaults exist at M0.
+ * separately designed set — elevated navy surfaces, desaturated text, brighter
+ * accents tuned for contrast — not an inversion of the light values.
+ * `.dark` on <html> swaps the whole set; Tailwind classes stay identical.
  */
 :root {
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --foreground: #0f172a;
+  --canvas: #f8fafc; /* page background */
+  --surface: #ffffff; /* cards, tables, forms */
+  --surface-2: #f1f5f9; /* table headers, hovers, chips */
+  --edge: #e2e8f0; /* card + input borders */
+  --edge-2: #f1f5f9; /* row separators */
+  --ink: #0f172a; /* primary text */
+  --ink-2: #334155; /* labels, secondary text */
+  --muted: #64748b; /* meta text */
+  --faint: #94a3b8; /* placeholders, empty states */
   --primary: #1d4ed8;
+  --primary-strong: #1e40af; /* hover */
+  --primary-soft: #eff6ff; /* selected nav, info badges */
+  --on-primary: #ffffff;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --success: #15803d;
+  --success-soft: #f0fdf4;
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --warning-edge: #fde68a;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0b1220;
+  --surface: #111b2e;
+  --surface-2: #1b2740;
+  --edge: #263349;
+  --edge-2: #1e2a42;
+  --ink: #e7edf6;
+  --ink-2: #c3cee0;
+  --muted: #8fa0b8;
+  --faint: #64748b;
+  --primary: #3b82f6;
+  --primary-strong: #2563eb;
+  --primary-soft: #1b2e52;
+  --on-primary: #ffffff;
+  --danger: #f87171;
+  --danger-soft: #3b1622;
+  --success: #4ade80;
+  --success-soft: #12291c;
+  --warning: #fbbf24;
+  --warning-soft: #2e230a;
+  --warning-edge: #5c4708;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-edge: var(--edge);
+  --color-edge-2: var(--edge-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-edge: var(--warning-edge);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--ink);
 }

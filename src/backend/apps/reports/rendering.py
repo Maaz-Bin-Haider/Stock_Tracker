@@ -8,6 +8,7 @@ an export always matches what the user saw on screen with the same filters
 
 import datetime
 import io
+import re
 from decimal import Decimal
 
 from apps.core.time import business_tz
@@ -67,10 +68,12 @@ def render_xlsx(title: str, generated: str, filters_desc: str, result: ReportRes
     used_titles: set[str] = set()
 
     for section in result.sections:
-        sheet_title = section.title[:31] or "Report"
+        # Excel forbids \ / ? * : [ ] in sheet names and caps them at 31 chars.
+        safe_title = re.sub(r"[\\/?*:\[\]]", "-", section.title)
+        sheet_title = safe_title[:31] or "Report"
         suffix = 2
         while sheet_title in used_titles:
-            sheet_title = f"{section.title[:28]} {suffix}"
+            sheet_title = f"{safe_title[:28]} {suffix}"
             suffix += 1
         used_titles.add(sheet_title)
         sheet = workbook.create_sheet(sheet_title)

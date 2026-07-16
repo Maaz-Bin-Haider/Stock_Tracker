@@ -63,6 +63,17 @@ class TestExcelExport:
         }
 
 
+class TestSheetTitleSanitizing:
+    def test_uploads_report_xlsx_exports(self, report_world):
+        """'Upload/File Report' contains a '/', which Excel forbids in sheet
+        names — the renderer must sanitize it instead of failing the job."""
+        response = create_export(report_world.admin_client, "uploads")
+        assert response.status_code == 201, response.data
+        assert response.data["status"] == "DONE", response.data["error"]
+        content = download_bytes(report_world.admin_client, response.data["id"])
+        assert "Upload-File Report" in load_workbook(io.BytesIO(content)).sheetnames
+
+
 class TestPdfExport:
     def test_pdf_bytes(self, report_world):
         response = create_export(report_world.admin_client, "gst-report", format="PDF")

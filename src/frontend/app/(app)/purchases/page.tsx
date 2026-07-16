@@ -2,6 +2,8 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 
+import AttachmentsPanel from "@/components/attachments-panel";
+import Pagination from "@/components/pagination";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
@@ -77,18 +79,18 @@ const emptyLine = (): LineForm => ({
 });
 
 const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700",
-  PARTIALLY_RECEIVED: "bg-blue-50 text-blue-700",
-  FULLY_COLLECTED: "bg-green-50 text-green-700",
-  CANCELLED: "bg-slate-100 text-slate-500",
-  REFUNDED: "bg-slate-100 text-slate-500",
+  PENDING: "bg-warning-soft text-warning",
+  PARTIALLY_RECEIVED: "bg-primary-soft text-primary",
+  FULLY_COLLECTED: "bg-success-soft text-success",
+  CANCELLED: "bg-surface-2 text-muted",
+  REFUNDED: "bg-surface-2 text-muted",
 };
 
 function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-        STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600"
+        STATUS_STYLES[status] ?? "bg-surface-2 text-ink-2"
       }`}
     >
       {status.replaceAll("_", " ")}
@@ -102,6 +104,7 @@ export default function PurchasesPage() {
 
   const [rows, setRows] = useState<Purchase[]>([]);
   const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [totals, setTotals] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -126,12 +129,15 @@ export default function PurchasesPage() {
   const [currencies, setCurrencies] = useState<Option[]>([]);
 
   const load = useCallback(async () => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (page > 1) params.set("page", String(page));
+    const query = params.size ? `?${params}` : "";
     const data = await api<ListResponse>(`/api/v1/purchases/${query}`);
     setRows(data.results);
     setCount(data.count);
     setTotals(data.totals ?? {});
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => {
     load().catch((err) => setError(errorMessage(err)));
@@ -243,23 +249,23 @@ export default function PurchasesPage() {
   }
 
   const inputCls =
-    "w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
+    "w-full rounded border border-edge px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Purchases</h1>
-        <span className="text-sm text-slate-500">{count} invoices</span>
+        <span className="text-sm text-muted">{count} invoices</span>
         <div className="ml-auto flex items-center gap-2">
           <input
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded border border-edge px-3 py-1.5 text-sm"
             placeholder="Search invoice, product, supplier…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
           {writable && (
             <button
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
               onClick={openCreate}
             >
               New Purchase
@@ -276,18 +282,18 @@ export default function PurchasesPage() {
           ["Value (AED)", totals.total_value_aed],
           ["GST (AED)", totals.total_gst_aed],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-            <div className="text-xs uppercase text-slate-500">{label}</div>
+          <div key={label} className="rounded-lg border border-edge bg-surface px-4 py-3">
+            <div className="text-xs uppercase text-muted">{label}</div>
             <div className="text-lg font-semibold">{value ?? "—"}</div>
           </div>
         ))}
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Invoice</th>
               <th className="px-4 py-2.5 font-medium">Date</th>
@@ -302,7 +308,7 @@ export default function PurchasesPage() {
             {rows.map((purchase) => (
               <Fragment key={purchase.id}>
                 <tr
-                  className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                  className="cursor-pointer border-b border-edge-2 last:border-0 hover:bg-surface-2"
                   onClick={() =>
                     setExpanded(expanded === purchase.id ? null : purchase.id)
                   }
@@ -319,7 +325,7 @@ export default function PurchasesPage() {
                     {writable && (
                       <>
                         <button
-                          className="text-blue-700 hover:underline"
+                          className="text-primary hover:underline"
                           onClick={(e) => {
                             e.stopPropagation();
                             openEdit(purchase);
@@ -328,7 +334,7 @@ export default function PurchasesPage() {
                           Edit
                         </button>
                         <button
-                          className="ml-3 text-red-600 hover:underline"
+                          className="ml-3 text-danger hover:underline"
                           onClick={(e) => {
                             e.stopPropagation();
                             remove(purchase);
@@ -341,10 +347,10 @@ export default function PurchasesPage() {
                   </td>
                 </tr>
                 {expanded === purchase.id && (
-                  <tr className="border-b border-slate-100">
-                    <td colSpan={7} className="bg-slate-50 px-6 py-3">
+                  <tr className="border-b border-edge-2">
+                    <td colSpan={7} className="bg-surface-2 px-6 py-3">
                       <table className="w-full text-xs">
-                        <thead className="text-slate-500">
+                        <thead className="text-muted">
                           <tr>
                             <th className="py-1 pr-3 text-left font-medium">Product</th>
                             <th className="py-1 pr-3 text-right font-medium">Qty</th>
@@ -359,7 +365,7 @@ export default function PurchasesPage() {
                         </thead>
                         <tbody>
                           {purchase.lines.map((line) => (
-                            <tr key={line.id} className="border-t border-slate-200">
+                            <tr key={line.id} className="border-t border-edge">
                               <td className="py-1.5 pr-3">{line.product_name}</td>
                               <td className="py-1.5 pr-3 text-right">{line.quantity}</td>
                               <td className="py-1.5 pr-3 text-right">
@@ -379,6 +385,11 @@ export default function PurchasesPage() {
                           ))}
                         </tbody>
                       </table>
+                      <AttachmentsPanel
+                        module="purchases"
+                        recordId={purchase.id}
+                        canWrite={writable}
+                      />
                     </td>
                   </tr>
                 )}
@@ -386,7 +397,7 @@ export default function PurchasesPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={7}>
+                <td className="px-4 py-6 text-center text-faint" colSpan={7}>
                   No purchases
                 </td>
               </tr>
@@ -395,11 +406,13 @@ export default function PurchasesPage() {
         </table>
       </div>
 
+      <Pagination page={page} count={count} onPage={setPage} />
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={submit}
-            className="max-h-full w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-full w-full max-w-4xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
           >
             <h2 className="mb-4 text-lg font-semibold">
               {editing ? `Edit ${editing.invoice_no}` : "New Purchase Invoice"}
@@ -407,8 +420,8 @@ export default function PurchasesPage() {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Invoice/reference <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Invoice/reference <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -418,8 +431,8 @@ export default function PurchasesPage() {
                 />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Purchase date <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Purchase date <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -430,8 +443,8 @@ export default function PurchasesPage() {
                 />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Location <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Location <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -449,8 +462,8 @@ export default function PurchasesPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Supplier/party <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Supplier/party <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -470,10 +483,10 @@ export default function PurchasesPage() {
 
             <div className="mt-5">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-700">Product lines</h3>
+                <h3 className="text-sm font-semibold text-ink-2">Product lines</h3>
                 <button
                   type="button"
-                  className="text-sm text-blue-700 hover:underline"
+                  className="text-sm text-primary hover:underline"
                   onClick={() => setLines([...lines, emptyLine()])}
                 >
                   + Add line
@@ -485,10 +498,10 @@ export default function PurchasesPage() {
                   return (
                     <div
                       key={line.id ?? `new-${index}`}
-                      className="grid gap-2 rounded border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-7"
+                      className="grid gap-2 rounded border border-edge p-3 sm:grid-cols-2 lg:grid-cols-7"
                     >
                       <label className="block text-xs lg:col-span-2">
-                        <span className="mb-1 block font-medium text-slate-600">
+                        <span className="mb-1 block font-medium text-ink-2">
                           Product *
                         </span>
                         <select
@@ -511,7 +524,7 @@ export default function PurchasesPage() {
                         </select>
                       </label>
                       <label className="block text-xs">
-                        <span className="mb-1 block font-medium text-slate-600">Qty *</span>
+                        <span className="mb-1 block font-medium text-ink-2">Qty *</span>
                         <input
                           className={inputCls}
                           type="number"
@@ -527,7 +540,7 @@ export default function PurchasesPage() {
                         />
                       </label>
                       <label className="block text-xs">
-                        <span className="mb-1 block font-medium text-slate-600">
+                        <span className="mb-1 block font-medium text-ink-2">
                           Unit price *
                         </span>
                         <input
@@ -546,7 +559,7 @@ export default function PurchasesPage() {
                         />
                       </label>
                       <label className="block text-xs">
-                        <span className="mb-1 block font-medium text-slate-600">
+                        <span className="mb-1 block font-medium text-ink-2">
                           Currency *
                         </span>
                         <select
@@ -569,7 +582,7 @@ export default function PurchasesPage() {
                         </select>
                       </label>
                       <label className="block text-xs">
-                        <span className="mb-1 block font-medium text-slate-600">
+                        <span className="mb-1 block font-medium text-ink-2">
                           Rate→AED
                         </span>
                         <input
@@ -588,7 +601,7 @@ export default function PurchasesPage() {
                         />
                       </label>
                       <label className="block text-xs">
-                        <span className="mb-1 block font-medium text-slate-600">
+                        <span className="mb-1 block font-medium text-ink-2">
                           {line.id ? "GST %" : "Collected now"}
                         </span>
                         {line.id ? (
@@ -625,14 +638,14 @@ export default function PurchasesPage() {
                         {lines.length > 1 && !locked && (
                           <button
                             type="button"
-                            className="text-xs text-red-600 hover:underline"
+                            className="text-xs text-danger hover:underline"
                             onClick={() => setLines(lines.filter((_, i) => i !== index))}
                           >
                             Remove
                           </button>
                         )}
                         {locked && (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-faint">
                             collected: {line.collected}
                           </span>
                         )}
@@ -644,7 +657,7 @@ export default function PurchasesPage() {
             </div>
 
             <label className="mt-4 block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Notes</span>
+              <span className="mb-1 block font-medium text-ink-2">Notes</span>
               <textarea
                 className={inputCls}
                 rows={2}
@@ -653,11 +666,11 @@ export default function PurchasesPage() {
               />
             </label>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm"
+                className="rounded border border-edge px-4 py-1.5 text-sm"
                 onClick={() => setShowForm(false)}
               >
                 Cancel
@@ -665,7 +678,7 @@ export default function PurchasesPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

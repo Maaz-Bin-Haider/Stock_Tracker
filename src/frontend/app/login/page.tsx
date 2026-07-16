@@ -29,15 +29,15 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
+        className="w-full max-w-sm rounded-lg border border-edge bg-surface p-8 shadow-sm"
       >
         <h1 className="mb-1 text-xl font-semibold">SwissTech Stock Tracker</h1>
-        <p className="mb-6 text-sm text-slate-500">Sign in to continue</p>
+        <p className="mb-6 text-sm text-muted">Sign in to continue</p>
 
         <label className="mb-3 block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Username</span>
+          <span className="mb-1 block font-medium text-ink-2">Username</span>
           <input
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-edge px-3 py-2 text-sm focus:border-primary focus:outline-none"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
@@ -45,22 +45,22 @@ export default function LoginPage() {
           />
         </label>
         <label className="mb-4 block text-sm">
-          <span className="mb-1 block font-medium text-slate-700">Password</span>
+          <span className="mb-1 block font-medium text-ink-2">Password</span>
           <input
             type="password"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-edge px-3 py-2 text-sm focus:border-primary focus:outline-none"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </label>
 
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="mb-4 text-sm text-danger">{error}</p>}
 
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-blue-700 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+          className="w-full rounded bg-primary py-2 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
         >
           {busy ? "Signing in…" : "Sign in"}
         </button>

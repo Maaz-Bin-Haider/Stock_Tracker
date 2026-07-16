@@ -59,6 +59,14 @@ class MeView(APIView):
     def get(self, request):
         return Response(MeSerializer(request.user).data)
 
+    def patch(self, request):
+        """Self-service profile bits — currently the theme preference
+        (FR-126: remembered per user, follows them across devices)."""
+        serializer = MeSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 
 class UserViewSet(
     mixins.CreateModelMixin,

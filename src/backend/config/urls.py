@@ -4,6 +4,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import LoginView, LogoutView, MeView, UserViewSet
+from apps.attachments.views import FileAttachmentViewSet
 from apps.audits.views import AuditLogViewSet
 from apps.core.views import health
 from apps.inventory.views import (
@@ -48,6 +49,7 @@ router.register("sales", SaleViewSet)
 router.register("stock-adjustments", StockAdjustmentViewSet)
 router.register("stock/ledger", StockLedgerViewSet, basename="stock-ledger")
 router.register("stock/balances", StockBalanceViewSet, basename="stock-balances")
+router.register("attachments", FileAttachmentViewSet)
 router.register("audit", AuditLogViewSet)
 
 urlpatterns = [

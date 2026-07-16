@@ -44,6 +44,23 @@ export async function api<T = unknown>(
   return body as T;
 }
 
+/** POST multipart form data (file uploads); same session/CSRF handling as api(). */
+export async function apiUpload<T = unknown>(path: string, form: FormData): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = getCookie("csrftoken");
+  if (token) headers["X-CSRFToken"] = token;
+  const response = await fetch(path, {
+    method: "POST",
+    headers,
+    credentials: "same-origin",
+    body: form,
+  });
+  const isJson = response.headers.get("content-type")?.includes("json");
+  const body = isJson ? await response.json() : await response.text();
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as T;
+}
+
 /** Flatten a DRF error body ({field: [messages]} or {detail: msg}) to one line. */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError && typeof err.body === "object" && err.body !== null) {

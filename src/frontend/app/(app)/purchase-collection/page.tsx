@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Pagination from "@/components/pagination";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
@@ -38,6 +39,7 @@ export default function PurchaseCollectionPage() {
 
   const [rows, setRows] = useState<PendingLine[]>([]);
   const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [locations, setLocations] = useState<Option[]>([]);
   const [locationFilter, setLocationFilter] = useState("");
   const [quantities, setQuantities] = useState<Record<number, string>>({});
@@ -49,11 +51,14 @@ export default function PurchaseCollectionPage() {
   const [busyLine, setBusyLine] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    const query = locationFilter ? `?location=${locationFilter}` : "";
+    const params = new URLSearchParams();
+    if (locationFilter) params.set("location", locationFilter);
+    if (page > 1) params.set("page", String(page));
+    const query = params.size ? `?${params}` : "";
     const data = await api<ListResponse>(`/api/v1/purchases/pending-lines/${query}`);
     setRows(data.results);
     setCount(data.count);
-  }, [locationFilter]);
+  }, [locationFilter, page]);
 
   useEffect(() => {
     load().catch((err) => setError(errorMessage(err)));
@@ -91,21 +96,21 @@ export default function PurchaseCollectionPage() {
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Purchase Collection / Pending</h1>
-        <span className="text-sm text-slate-500">{count} pending lines</span>
+        <span className="text-sm text-muted">{count} pending lines</span>
         <div className="ml-auto flex items-center gap-2 text-sm">
           <label className="flex items-center gap-2">
-            <span className="text-slate-600">Collection date</span>
+            <span className="text-ink-2">Collection date</span>
             <input
               type="date"
-              className="rounded border border-slate-300 px-2 py-1.5"
+              className="rounded border border-edge px-2 py-1.5"
               value={collectionDate}
               onChange={(e) => setCollectionDate(e.target.value)}
             />
           </label>
           <select
-            className="rounded border border-slate-300 px-2 py-1.5"
+            className="rounded border border-edge px-2 py-1.5"
             value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
+            onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
           >
             <option value="">All locations</option>
             {locations.map((location) => (
@@ -117,12 +122,12 @@ export default function PurchaseCollectionPage() {
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-      {notice && <p className="mb-3 text-sm text-green-700">{notice}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+      {notice && <p className="mb-3 text-sm text-success">{notice}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Invoice</th>
               <th className="px-4 py-2.5 font-medium">Date</th>
@@ -137,7 +142,7 @@ export default function PurchaseCollectionPage() {
           </thead>
           <tbody>
             {rows.map((line) => (
-              <tr key={line.id} className="border-b border-slate-100 last:border-0">
+              <tr key={line.id} className="border-b border-edge-2 last:border-0">
                 <td className="px-4 py-2 font-medium">{line.invoice_no}</td>
                 <td className="px-4 py-2">{line.purchase_date}</td>
                 <td className="px-4 py-2">{line.location_name}</td>
@@ -145,7 +150,7 @@ export default function PurchaseCollectionPage() {
                 <td className="px-4 py-2">{line.product_name}</td>
                 <td className="px-4 py-2 text-right">{line.quantity}</td>
                 <td className="px-4 py-2 text-right">{line.collected}</td>
-                <td className="px-4 py-2 text-right font-medium text-amber-700">
+                <td className="px-4 py-2 text-right font-medium text-warning">
                   {line.pending}
                 </td>
                 {writable && (
@@ -156,7 +161,7 @@ export default function PurchaseCollectionPage() {
                         step="any"
                         min="0"
                         placeholder={line.pending}
-                        className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                        className="w-24 rounded border border-edge px-2 py-1 text-right text-sm"
                         value={quantities[line.id] ?? ""}
                         onChange={(e) =>
                           setQuantities((prev) => ({
@@ -166,7 +171,7 @@ export default function PurchaseCollectionPage() {
                         }
                       />
                       <button
-                        className="rounded bg-blue-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                        className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
                         disabled={busyLine === line.id}
                         onClick={() =>
                           collect(line, quantities[line.id] || line.pending)
@@ -181,7 +186,7 @@ export default function PurchaseCollectionPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={9}>
+                <td className="px-4 py-6 text-center text-faint" colSpan={9}>
                   Nothing pending — all purchased stock has been collected.
                 </td>
               </tr>
@@ -189,6 +194,8 @@ export default function PurchaseCollectionPage() {
           </tbody>
         </table>
       </div>
+
+      <Pagination page={page} count={count} onPage={setPage} />
     </div>
   );
 }

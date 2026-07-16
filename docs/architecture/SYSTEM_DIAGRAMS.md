@@ -783,6 +783,7 @@ erDiagram
         string email
         string password_hash
         string status
+        string theme "LIGHT, DARK, or empty = system preference"
         datetime last_login_at
         datetime created_at
         datetime updated_at

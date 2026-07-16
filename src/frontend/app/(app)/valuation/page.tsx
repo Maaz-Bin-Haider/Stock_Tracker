@@ -24,7 +24,7 @@ export default function ValuationPage() {
 
   if (user && user.role !== "ADMIN") {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         Stock valuation is available to admin users only.
       </p>
     );
@@ -36,21 +36,21 @@ export default function ValuationPage() {
     <div>
       <div className="mb-1 flex items-center gap-3">
         <h1 className="text-xl font-semibold">Stock Valuation</h1>
-        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+        <span className="rounded bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-2">
           Admin only
         </span>
       </div>
-      <p className="mb-4 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-muted">
         Weighted average cost in AED per product per location; value follows stock through
         the physical, in-transit, and pending buckets. Shipping costs are excluded.
       </p>
 
-      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-slate-200 bg-white p-1 text-sm">
+      <div className="mb-4 flex w-fit gap-1 rounded-lg border border-edge bg-surface p-1 text-sm">
         {reports.map((report) => (
           <button
             key={report.key}
             className={`rounded px-4 py-1.5 font-medium ${
-              tab === report.key ? "bg-blue-700 text-white" : "text-slate-600 hover:bg-slate-50"
+              tab === report.key ? "bg-primary text-on-primary" : "text-ink-2 hover:bg-surface-2"
             }`}
             onClick={() => setTab(report.key)}
           >
@@ -59,7 +59,7 @@ export default function ValuationPage() {
         ))}
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
       {selected && <ReportView report={selected} />}
     </div>
   );

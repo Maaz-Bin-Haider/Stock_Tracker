@@ -29,10 +29,10 @@ interface DashboardData {
 
 function Card({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="rounded-lg border border-edge bg-surface p-4">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted">{label}</div>
       <div className="mt-1 text-2xl font-semibold">{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-slate-400">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs text-faint">{sub}</div>}
     </div>
   );
 }
@@ -66,7 +66,7 @@ export default function DashboardPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <h1 className="text-xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             Welcome back, <span className="font-medium">{user?.username}</span>
             {data && (
               <>
@@ -78,17 +78,17 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
-        <label className="flex flex-col gap-1 text-xs text-slate-500">
+        <label className="flex flex-col gap-1 text-xs text-muted">
           Past snapshot (Dubai time)
           <input
             type="datetime-local"
-            className="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+            className="rounded border border-edge bg-surface px-2 py-1.5 text-sm"
             value={cutoff}
             onChange={(e) => setCutoff(e.target.value)}
           />
         </label>
         <button
-          className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
           disabled={!cutoff}
           onClick={() => setAppliedCutoff(cutoff)}
         >
@@ -96,7 +96,7 @@ export default function DashboardPage() {
         </button>
         {appliedCutoff && (
           <button
-            className="rounded px-3 py-1.5 text-sm text-blue-700 hover:underline"
+            className="rounded px-3 py-1.5 text-sm text-primary hover:underline"
             onClick={() => {
               setCutoff("");
               setAppliedCutoff("");
@@ -107,12 +107,12 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
       {data && (
         <>
           {data.as_of && (
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+            <div className="mb-4 rounded-lg border border-warning-edge bg-warning-soft px-4 py-2 text-sm text-warning">
               Showing a past snapshot — stock figures are rebuilt from the ledger up to the
               cutoff (FR-096).
             </div>
@@ -138,10 +138,10 @@ export default function DashboardPage() {
             />
           </div>
 
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Stock by location</h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <h2 className="mb-2 text-sm font-semibold text-ink-2">Stock by location</h2>
+          <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Location</th>
                   <th className="px-4 py-2.5 text-right font-medium">Physical</th>
@@ -151,9 +151,9 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {data.stock_by_location.map((row) => (
-                  <tr key={row.location} className="border-b border-slate-100 last:border-0">
+                  <tr key={row.location} className="border-b border-edge-2 last:border-0">
                     <td className="px-4 py-2">{row.location}</td>
-                    <td className={`px-4 py-2 text-right ${row.physical < 0 ? "font-medium text-red-600" : ""}`}>
+                    <td className={`px-4 py-2 text-right ${row.physical < 0 ? "font-medium text-danger" : ""}`}>
                       {qty(row.physical)}
                     </td>
                     <td className="px-4 py-2 text-right">{qty(row.pending)}</td>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
                 ))}
                 {data.stock_by_location.length === 0 && (
                   <tr>
-                    <td className="px-4 py-6 text-center text-slate-400" colSpan={4}>
+                    <td className="px-4 py-6 text-center text-faint" colSpan={4}>
                       No stock movements yet
                     </td>
                   </tr>

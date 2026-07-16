@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M6 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation). Next: M7 hardening.
+- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Next: M8 AWS deployment.
 
 ## Current Project Structure
 
@@ -101,6 +101,22 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-16 (later — M7)
+
+- Completed phase M7 (hardening), verified end-to-end through nginx with the SRS §12 acceptance walkthrough:
+  - **File attachments** (`apps/attachments`, FR-035/FR-073/FR-104…FR-107): `FileAttachment` (module + record_id link to purchases/sales, metadata in DB, bytes in default storage → local media dev / S3 later), upload validation with **magic-byte content sniffing** (PDF/JPEG/PNG/WebP only, 10 MB cap — a renamed executable is rejected), module-scoped write permissions (sale users can't attach to purchases), audited uploads/deletes, authenticated download. The deferred **Upload/File report** is now in the registry (`uploads` key) with download links. Frontend: `components/attachments-panel.tsx` inside the expanded purchase/sale rows.
+  - **Theming** (FR-124…FR-127): full semantic token sets in `globals.css` (Tailwind v4 `@theme inline` over CSS vars) with a **separately designed dark palette** (elevated navy surfaces, desaturated text, brighter accents — not an inversion); every page/component swept off raw Tailwind palette classes onto tokens (`bg-surface`, `border-edge`, `text-muted`, `text-danger`, `bg-warning-soft`, …); `color-scheme` set per theme so native controls follow. Preference lives on the user profile (`User.theme` LIGHT/DARK/'' = system, migration 0002; `PATCH /api/v1/auth/me/`) **and** localStorage, with an inline no-flash boot script in the root layout; toggle in the sidebar. System preference respected on first visit.
+  - **Responsive shell** (SRS §7.6): static sidebar ≥lg, hamburger top bar + overlay drawer below; `min-w-0` main column so tables scroll inside their containers, never the page.
+  - **Pagination**: shared `components/pagination.tsx` wired into `resource-crud.tsx` and all custom list pages (purchases, sales, shipments, adjustments, ledger, collection, audit), with page reset on search/filter/tab changes.
+  - **Exports history**: "Recent exports" panel on /reports (per-user job list + re-download). Fixed an export bug the acceptance run caught: Excel forbids `/ \ ? * : [ ]` in sheet names, so "Upload/File Report" failed — sheet titles are now sanitized (regression test added).
+  - **Demo seed**: `manage.py seed --demo` builds a small business history **through the domain services** (Sydney AUD purchase w/ GST + partial collection + pending cancellation, Dubai purchase, Sydney→Dubai partial shipment, Dubai→Karachi transfer, sales incl. today, admin adjustment) in one transaction, idempotent via the DEMO-0001 guard; dashboards/reports/valuation have data on a fresh env, zero ledger drift.
+  - **Dev-DB repair**: the local Docker Postgres had drifted from the checked-in shipments 0001 migration (edited in place during M4: missing `cancel_reason`, narrow `shipment_type`, legacy `unit_value_aed`/`total_value_aed`/`receipt_no` columns). Patched the dev DB to match the models (verified with an all-tables introspection diff — clean), soft-deleted the partial demo rows via the services, reconciled with zero drift. Fresh databases were never affected.
+  - **Acceptance run (SRS §12)**: exercised live — login/roles, dashboard live + past cutoff (Dubai-time conversion verified), GST report netting demo refund (3000 − 300 = 2700 AUD), in-transit report (partial + over-received rows), valuation summary, upload → download → uploads report → uploads export via the real Celery worker, theme PATCH persistence, all pages 200 in both themes. Negative-stock/over-receive warnings, recalculation-from-ledger, and permission-matrix items covered by the 196-test suite.
+- Tests: 196 passing (16 new: attachments upload/sniffing/permissions/report + theme preference + sheet-title regression). ruff/eslint/tsc clean.
+- Files: `src/backend/apps/attachments/{models,serializers,views}.py` + migration 0001, `apps/accounts/{models,serializers,views}.py` + migration 0002, `apps/reports/{builders,rendering}.py`, `apps/masterdata/management/commands/seed.py`, `config/{urls.py,settings/test.py}`, `src/frontend/app/globals.css`, `app/layout.tsx`, `app/(app)/layout.tsx` (drawer + theme toggle), `lib/{theme.ts,auth.tsx,api.ts}`, `components/{pagination,attachments-panel}.tsx`, all pages (token sweep + pagination), `tests/backend/{test_attachments,test_report_exports}.py`, docs (ER users.theme, PROJECT_CONTEXT, CLAUDE.md).
+- Open items: dedicated per-breakpoint DataTable column priorities and Playwright viewport/theme screenshot flows (TECHNICAL_ARCHITECTURE §9.2) remain nice-to-haves; `app_settings` and the OpenAPI-generated typed client stay deferred.
+- Next recommended step: **Phase M8 — AWS deployment** per TECHNICAL_ARCHITECTURE §12/§15: single EC2 with the Compose stack under prod settings (gunicorn, TLS, Next.js production build), S3 for media + private exports (django-storages), backups (`pg_dump` to S3 — schedule/retention still an open item), production hardening of `config/settings/prod.py`.
 
 ### 2026-07-16 (M6)
 
@@ -229,12 +245,12 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M7 — hardening.** M0–M6 are done and verified (180 backend tests, ruff/eslint/tsc clean, exports exercised through nginx + the real Celery worker). Per `TECHNICAL_ARCHITECTURE.md` §15 and SRS §12:
+**TODO (next session): Phase M8 — AWS deployment.** M0–M7 are done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough exercised against the live stack). Per `TECHNICAL_ARCHITECTURE.md` §12/§15 and SRS §9.4:
 
-- [ ] Theming (FR-124…FR-127): semantic color tokens + the separately designed dark palette with a user-remembered toggle — nothing themed yet, pages use raw Tailwind slate/blue classes.
-- [ ] Responsive pass (SRS §7.6): sidebar → rail/drawer on tablets, DataTable column priorities per breakpoint, the target-viewport checks (desktop, small laptop, iPad, small tablet, phone).
-- [ ] Purchase/sale file attachments (`apps/attachments`, FR-035/FR-073/FR-104…FR-107) — also unlocks the deferred Upload/File report in the report registry.
-- [ ] Mismatch/warning highlighting review across pages (SRS §15), pagination controls on list pages (they show the first API page), an exports-history view (jobs API already lists per-user history).
-- [ ] Richer seed data + full SRS §12 acceptance run; audit review.
+- [ ] Production settings (`config/settings/prod.py`): secrets from env, `DEBUG=False`, allowed hosts, secure cookies/HSTS, gunicorn behind nginx with TLS, Next.js production build (the frontend container currently runs `next dev`).
+- [ ] Storage: S3-compatible bucket via django-storages — public-ish media for uploads per current serving model, **private** prefix + authenticated download for report exports (`EXPORTS_ROOT` swap is configuration only).
+- [ ] Single EC2 instance running the Compose stack with prod settings; domain + TLS certificates.
+- [ ] Backups: `pg_dump` to S3 on a schedule — **schedule, retention, and restore drill remain the open business decision**; propose defaults (daily, 30 days, documented restore) and confirm.
+- [ ] Deployment smoke run: migrate, seed master data (no `--demo` in prod), create real users, re-run the acceptance checklist against the instance.
 
-Deferred small items (unchanged): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9).
+Deferred small items (unchanged): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), per-breakpoint DataTable column priorities + Playwright viewport/theme screenshot flows (§9.2).

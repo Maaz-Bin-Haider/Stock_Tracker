@@ -11,6 +11,8 @@ export interface SessionUser {
   first_name: string;
   last_name: string;
   role: Role;
+  /** "" = follow system preference (FR-126). */
+  theme: "" | "LIGHT" | "DARK";
 }
 
 export const AuthContext = createContext<SessionUser | null>(null);

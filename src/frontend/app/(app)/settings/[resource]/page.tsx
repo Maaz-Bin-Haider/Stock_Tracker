@@ -113,7 +113,7 @@ export default function SettingsResourcePage() {
   const config = RESOURCES[params.resource];
 
   if (!config) {
-    return <p className="text-sm text-slate-500">Unknown settings page.</p>;
+    return <p className="text-sm text-muted">Unknown settings page.</p>;
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Pagination from "@/components/pagination";
 import { api, errorMessage } from "@/lib/api";
 
 export type FieldType =
@@ -67,6 +68,7 @@ export default function ResourceCrud({
   const [rows, setRows] = useState<Row[]>([]);
   const [count, setCount] = useState(0);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Row | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [values, setValues] = useState<FormValues>({});
@@ -77,11 +79,13 @@ export default function ResourceCrud({
   >({});
 
   const load = useCallback(async () => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
-    const data = await api<ListResponse>(`${endpoint}${query}`);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (page > 1) params.set("page", String(page));
+    const data = await api<ListResponse>(`${endpoint}${params.size ? `?${params}` : ""}`);
     setRows(data.results);
     setCount(data.count);
-  }, [endpoint, search]);
+  }, [endpoint, search, page]);
 
   useEffect(() => {
     load().catch((err) => setError(errorMessage(err)));
@@ -174,7 +178,7 @@ export default function ResourceCrud({
 
   function renderInput(field: FieldDef) {
     const shared =
-      "w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none";
+      "w-full rounded border border-edge px-3 py-2 text-sm focus:border-primary focus:outline-none";
     const value = values[field.name];
 
     if (field.type === "checkbox") {
@@ -230,17 +234,20 @@ export default function ResourceCrud({
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">{title}</h1>
-        <span className="text-sm text-slate-500">{count} records</span>
+        <span className="text-sm text-muted">{count} records</span>
         <div className="ml-auto flex items-center gap-2">
           <input
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded border border-edge px-3 py-1.5 text-sm"
             placeholder="Search…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
           {canWrite && (
             <button
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
               onClick={() => openForm(null)}
             >
               New
@@ -249,11 +256,11 @@ export default function ResourceCrud({
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
               {columns.map((column) => (
                 <th key={column.key} className="px-4 py-2.5 font-medium">
@@ -265,7 +272,7 @@ export default function ResourceCrud({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-b border-slate-100 last:border-0">
+              <tr key={row.id} className="border-b border-edge-2 last:border-0">
                 {columns.map((column) => (
                   <td key={column.key} className="px-4 py-2">
                     {formatCell(row[column.key])}
@@ -274,14 +281,14 @@ export default function ResourceCrud({
                 {canWrite && (
                   <td className="px-4 py-2 text-right whitespace-nowrap">
                     <button
-                      className="text-blue-700 hover:underline"
+                      className="text-primary hover:underline"
                       onClick={() => openForm(row)}
                     >
                       Edit
                     </button>
                     {allowDelete && (
                       <button
-                        className="ml-3 text-red-600 hover:underline"
+                        className="ml-3 text-danger hover:underline"
                         onClick={() => remove(row)}
                       >
                         Delete
@@ -294,7 +301,7 @@ export default function ResourceCrud({
             {rows.length === 0 && (
               <tr>
                 <td
-                  className="px-4 py-6 text-center text-slate-400"
+                  className="px-4 py-6 text-center text-faint"
                   colSpan={columns.length + 1}
                 >
                   No records
@@ -305,11 +312,13 @@ export default function ResourceCrud({
         </table>
       </div>
 
+      <Pagination page={page} count={count} onPage={setPage} />
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={submit}
-            className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-full w-full max-w-lg overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
           >
             <h2 className="mb-4 text-lg font-semibold">
               {editing ? `Edit ${title}` : `New ${title}`}
@@ -317,26 +326,26 @@ export default function ResourceCrud({
             <div className="grid gap-3">
               {fields.map((field) => (
                 <label key={field.name} className="block text-sm">
-                  <span className="mb-1 block font-medium text-slate-700">
+                  <span className="mb-1 block font-medium text-ink-2">
                     {field.label}
-                    {field.required && <span className="text-red-500"> *</span>}
+                    {field.required && <span className="text-danger"> *</span>}
                   </span>
                   {renderInput(field)}
                 </label>
               ))}
             </div>
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm"
+                className="rounded border border-edge px-4 py-1.5 text-sm"
                 onClick={() => setShowForm(false)}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+                className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
               >
                 Save
               </button>

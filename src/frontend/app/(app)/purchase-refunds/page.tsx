@@ -165,7 +165,7 @@ export default function PurchaseRefundsPage() {
   }
 
   const inputCls =
-    "rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none";
+    "rounded border border-edge px-2 py-1 text-sm focus:border-primary focus:outline-none";
 
   return (
     <div>
@@ -173,21 +173,21 @@ export default function PurchaseRefundsPage() {
         <h1 className="text-xl font-semibold">Purchase Refunds / Cancellations</h1>
         <div className="relative ml-auto">
           <input
-            className="w-72 rounded border border-slate-300 px-3 py-1.5 text-sm"
+            className="w-72 rounded border border-edge px-3 py-1.5 text-sm"
             placeholder="Find purchase invoice…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           {matches.length > 0 && (
-            <div className="absolute right-0 z-10 mt-1 w-96 rounded-lg border border-slate-200 bg-white shadow-lg">
+            <div className="absolute right-0 z-10 mt-1 w-96 rounded-lg border border-edge bg-surface shadow-lg">
               {matches.map((candidate) => (
                 <button
                   key={candidate.id}
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
                   onClick={() => select(candidate)}
                 >
                   <span className="font-medium">{candidate.invoice_no}</span>
-                  <span className="text-slate-500">
+                  <span className="text-muted">
                     {" "}
                     · {candidate.purchase_date} · {candidate.location_name} ·{" "}
                     {candidate.supplier_name}
@@ -199,11 +199,11 @@ export default function PurchaseRefundsPage() {
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-      {notice && <p className="mb-3 text-sm text-green-700">{notice}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+      {notice && <p className="mb-3 text-sm text-success">{notice}</p>}
 
       {!purchase && (
-        <p className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+        <p className="rounded-lg border border-dashed border-edge bg-surface px-4 py-10 text-center text-sm text-muted">
           Search for a purchase invoice above to load its product lines, then refund or
           cancel quantities line by line.
         </p>
@@ -211,18 +211,18 @@ export default function PurchaseRefundsPage() {
 
       {purchase && (
         <>
-          <div className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+          <div className="mb-4 rounded-lg border border-edge bg-surface px-4 py-3 text-sm">
             <span className="font-semibold">{purchase.invoice_no}</span>
-            <span className="text-slate-500">
+            <span className="text-muted">
               {" "}
               · {purchase.purchase_date} · {purchase.location_name} ·{" "}
               {purchase.supplier_name} · {purchase.status.replaceAll("_", " ")}
             </span>
           </div>
 
-          <div className="mb-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="mb-4 overflow-x-auto rounded-lg border border-edge bg-surface">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Product</th>
                   <th className="px-4 py-2.5 text-right font-medium">Qty</th>
@@ -240,7 +240,7 @@ export default function PurchaseRefundsPage() {
               </thead>
               <tbody>
                 {purchase.lines.map((line) => (
-                  <tr key={line.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={line.id} className="border-b border-edge-2 last:border-0">
                     <td className="px-4 py-2">{line.product_name}</td>
                     <td className="px-4 py-2 text-right">{line.quantity}</td>
                     <td className="px-4 py-2 text-right">{line.collected}</td>
@@ -294,9 +294,9 @@ export default function PurchaseRefundsPage() {
           </div>
 
           {writable && (
-            <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+            <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-edge bg-surface px-4 py-3 text-sm">
               <label className="block">
-                <span className="mb-1 block font-medium text-slate-700">Refund date</span>
+                <span className="mb-1 block font-medium text-ink-2">Refund date</span>
                 <input
                   type="date"
                   className={inputCls}
@@ -305,8 +305,8 @@ export default function PurchaseRefundsPage() {
                 />
               </label>
               <label className="block grow">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Reason <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Reason <span className="text-danger">*</span>
                 </span>
                 <input
                   className={`${inputCls} w-full`}
@@ -316,7 +316,7 @@ export default function PurchaseRefundsPage() {
                 />
               </label>
               <button
-                className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
                 disabled={saving || !reason.trim()}
                 onClick={submitRefund}
               >
@@ -325,12 +325,12 @@ export default function PurchaseRefundsPage() {
             </div>
           )}
 
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">
+          <h2 className="mb-2 text-sm font-semibold text-ink-2">
             Refund history for this invoice
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Refund #</th>
                   <th className="px-4 py-2.5 font-medium">Date</th>
@@ -353,14 +353,14 @@ export default function PurchaseRefundsPage() {
                     0,
                   );
                   return (
-                    <tr key={refund.id} className="border-b border-slate-100 last:border-0">
+                    <tr key={refund.id} className="border-b border-edge-2 last:border-0">
                       <td className="px-4 py-2 font-medium">{refund.refund_no}</td>
                       <td className="px-4 py-2">{refund.refund_date}</td>
                       <td className="px-4 py-2 text-xs">
                         {refund.lines.map((line) => (
                           <div key={`${refund.id}-${line.purchase_line}`}>
                             {line.quantity} × {line.product_name}{" "}
-                            <span className="text-slate-500">
+                            <span className="text-muted">
                               ({line.source === "PENDING" ? "cancelled" : "returned"})
                             </span>
                           </div>
@@ -373,7 +373,7 @@ export default function PurchaseRefundsPage() {
                       {writable && (
                         <td className="px-4 py-2 text-right">
                           <button
-                            className="text-red-600 hover:underline"
+                            className="text-danger hover:underline"
                             onClick={() => removeRefund(refund)}
                           >
                             Undo
@@ -385,7 +385,7 @@ export default function PurchaseRefundsPage() {
                 })}
                 {refunds.length === 0 && (
                   <tr>
-                    <td className="px-4 py-6 text-center text-slate-400" colSpan={8}>
+                    <td className="px-4 py-6 text-center text-faint" colSpan={8}>
                       No refunds/cancellations recorded for this invoice
                     </td>
                   </tr>

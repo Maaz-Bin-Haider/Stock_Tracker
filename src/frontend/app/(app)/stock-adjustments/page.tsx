@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Pagination from "@/components/pagination";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
@@ -62,6 +63,7 @@ export default function StockAdjustmentsPage() {
 
   const [rows, setRows] = useState<Adjustment[]>([]);
   const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
@@ -83,11 +85,14 @@ export default function StockAdjustmentsPage() {
   const [locations, setLocations] = useState<Option[]>([]);
 
   const load = useCallback(async () => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (page > 1) params.set("page", String(page));
+    const query = params.size ? `?${params}` : "";
     const data = await api<ListResponse>(`/api/v1/stock-adjustments/${query}`);
     setRows(data.results);
     setCount(data.count);
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => {
     load().catch((err) => setError(errorMessage(err)));
@@ -182,23 +187,23 @@ export default function StockAdjustmentsPage() {
   }
 
   const inputCls =
-    "w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
+    "w-full rounded border border-edge px-2 py-1.5 text-sm focus:border-primary focus:outline-none";
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Stock Adjustments</h1>
-        <span className="text-sm text-slate-500">{count} adjustments</span>
+        <span className="text-sm text-muted">{count} adjustments</span>
         <div className="ml-auto flex items-center gap-2">
           <input
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+            className="rounded border border-edge px-3 py-1.5 text-sm"
             placeholder="Search reason, product…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
           {writable && (
             <button
-              className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
               onClick={openCreate}
             >
               New Adjustment
@@ -207,11 +212,11 @@ export default function StockAdjustmentsPage() {
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Date</th>
               <th className="px-4 py-2.5 font-medium">Location</th>
@@ -227,7 +232,7 @@ export default function StockAdjustmentsPage() {
             {rows.map((adjustment) => (
               <tr
                 key={adjustment.id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                className="border-b border-edge-2 last:border-0 hover:bg-surface-2"
               >
                 <td className="px-4 py-2">{adjustment.adjustment_date}</td>
                 <td className="px-4 py-2">{adjustment.location_name}</td>
@@ -236,8 +241,8 @@ export default function StockAdjustmentsPage() {
                   <span
                     className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
                       adjustment.adjustment_type === "INCREASE"
-                        ? "bg-green-50 text-green-700"
-                        : "bg-amber-50 text-amber-700"
+                        ? "bg-success-soft text-success"
+                        : "bg-warning-soft text-warning"
                     }`}
                   >
                     {adjustment.adjustment_type === "INCREASE" ? "+ increase" : "− decrease"}
@@ -250,13 +255,13 @@ export default function StockAdjustmentsPage() {
                   {writable && (
                     <>
                       <button
-                        className="text-blue-700 hover:underline"
+                        className="text-primary hover:underline"
                         onClick={() => openEdit(adjustment)}
                       >
                         Edit
                       </button>
                       <button
-                        className="ml-3 text-red-600 hover:underline"
+                        className="ml-3 text-danger hover:underline"
                         onClick={() => remove(adjustment)}
                       >
                         Delete
@@ -268,7 +273,7 @@ export default function StockAdjustmentsPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-center text-slate-400" colSpan={8}>
+                <td className="px-4 py-6 text-center text-faint" colSpan={8}>
                   No stock adjustments
                 </td>
               </tr>
@@ -277,11 +282,13 @@ export default function StockAdjustmentsPage() {
         </table>
       </div>
 
+      <Pagination page={page} count={count} onPage={setPage} />
+
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={submit}
-            className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+            className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
           >
             <h2 className="mb-4 text-lg font-semibold">
               {editing ? "Edit Adjustment" : "New Stock Adjustment"}
@@ -289,8 +296,8 @@ export default function StockAdjustmentsPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Date <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Date <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -301,8 +308,8 @@ export default function StockAdjustmentsPage() {
                 />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Location <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Location <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -319,8 +326,8 @@ export default function StockAdjustmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Product <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Product <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -337,8 +344,8 @@ export default function StockAdjustmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Type <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Type <span className="text-danger">*</span>
                 </span>
                 <select
                   className={inputCls}
@@ -351,8 +358,8 @@ export default function StockAdjustmentsPage() {
                 </select>
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Quantity <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Quantity <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -365,8 +372,8 @@ export default function StockAdjustmentsPage() {
                 />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block font-medium text-slate-700">
-                  Reason <span className="text-red-500">*</span>
+                <span className="mb-1 block font-medium text-ink-2">
+                  Reason <span className="text-danger">*</span>
                 </span>
                 <input
                   className={inputCls}
@@ -379,7 +386,7 @@ export default function StockAdjustmentsPage() {
             </div>
 
             <label className="mt-4 block text-sm">
-              <span className="mb-1 block font-medium text-slate-700">Notes</span>
+              <span className="mb-1 block font-medium text-ink-2">Notes</span>
               <textarea
                 className={inputCls}
                 rows={2}
@@ -388,11 +395,11 @@ export default function StockAdjustmentsPage() {
               />
             </label>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && <p className="mt-3 text-sm text-danger">{formError}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-300 px-4 py-1.5 text-sm"
+                className="rounded border border-edge px-4 py-1.5 text-sm"
                 onClick={() => setShowForm(false)}
               >
                 Cancel
@@ -400,7 +407,7 @@ export default function StockAdjustmentsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>

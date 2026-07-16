@@ -4,9 +4,6 @@ Stock figures come from ``stock_balances`` (or the ledger when a past
 ``cutoff`` is given — TECHNICAL_ARCHITECTURE §5.3); money/GST figures come
 from the values frozen on purchase and refund lines, never from summing
 ``gst_value`` across ledger rows (see apps.purchases.services notes).
-
-The Upload/File report (SRS §5) is deferred together with the purchase/sale
-attachments feature (FR-104…FR-107) — there are no uploads to report yet.
 """
 
 from decimal import ROUND_HALF_UP, Decimal
@@ -1001,6 +998,44 @@ def build_stock_adjustment_report(filters, is_admin) -> ReportResult:
     return ReportResult([Section("Stock Adjustment Report", columns, rows)], totals)
 
 
+def build_upload_file_report(filters, is_admin) -> ReportResult:
+    from apps.attachments.models import FileAttachment
+
+    attachments = FileAttachment.objects.select_related("uploaded_by")
+    start, end = _txn_window(filters)
+    if start:
+        attachments = attachments.filter(uploaded_at__gte=start)
+    if end:
+        attachments = attachments.filter(uploaded_at__lt=end)
+    if filters.get("module"):
+        attachments = attachments.filter(module=filters["module"])
+
+    rows = [
+        {
+            "original_name": attachment.original_name,
+            "content_type": attachment.content_type,
+            "module": attachment.module,
+            "record": f"{attachment.module}#{attachment.record_id}",
+            "uploaded_by": attachment.uploaded_by.username,
+            "uploaded_at": attachment.uploaded_at,
+            "download_url": f"/api/v1/attachments/{attachment.pk}/download/",
+        }
+        for attachment in attachments.order_by("-uploaded_at", "-id")
+    ]
+    columns = [
+        Column("original_name", "File name"),
+        Column("content_type", "File type"),
+        Column("module", "Linked module"),
+        Column("record", "Linked record"),
+        Column("uploaded_by", "Uploaded by"),
+        Column("uploaded_at", "Uploaded at", "datetime"),
+        Column("download_url", "Download link"),
+    ]
+    return ReportResult(
+        [Section("Upload/File Report", columns, rows)], {"Rows": len(rows)}
+    )
+
+
 def build_user_activity_report(filters, is_admin) -> ReportResult:
     logs = AuditLog.objects.select_related("user").order_by("-created_at", "-id")
     start, end = _txn_window(filters)
@@ -1340,6 +1375,13 @@ REPORTS: dict[str, Report] = {
             "Audit trail: who did what, when, from where.",
             ("date_from", "date_to", "user", "action", "module"),
             build_user_activity_report,
+        ),
+        Report(
+            "uploads",
+            "Upload/File Report",
+            "Uploaded invoice/bill files with download links.",
+            ("date_from", "date_to", "module"),
+            build_upload_file_report,
         ),
         Report(
             "stock-valuation-summary",

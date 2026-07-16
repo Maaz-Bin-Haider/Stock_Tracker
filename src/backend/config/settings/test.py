@@ -10,3 +10,4 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 EXPORTS_ROOT = Path(tempfile.gettempdir()) / "stock_tracker_test_exports"
+MEDIA_ROOT = Path(tempfile.gettempdir()) / "stock_tracker_test_media"
