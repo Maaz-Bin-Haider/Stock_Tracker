@@ -46,6 +46,7 @@ Stock_Tracker/
 ## Key Documents
 
 - `README.md`: repository overview and document map.
+- `docs/USER_GUIDE.md`: non-technical end-user guide for client staff — every screen, button, and workflow with worked examples ("if you do X, then Y").
 - `docs/requirements/PROJECT_CONTEXT.md`: detailed requirements gathering history.
 - `docs/requirements/SYSTEM_SPEC.md`: implementation-oriented system specification.
 - `docs/requirements/SRS.md`: formal Software Requirements Specification.
