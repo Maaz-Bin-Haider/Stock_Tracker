@@ -28,6 +28,10 @@ venv/
 data/exports/*
 !data/exports/.gitkeep
 
+# Local database backups (Phase M9 offline stack)
+data/backups/*
+!data/backups/.gitkeep
+
 
 # Python tooling caches
 .pytest_cache/

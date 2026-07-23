@@ -69,6 +69,30 @@ make typecheck # tsc --noEmit (frontend)
 
 CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, and the frontend build on every push/PR to main.
 
+### Offline / local production (Phase M9)
+
+To run the app in **production mode on a single machine or office LAN** (gunicorn + a
+Next.js production build behind nginx, persistent volumes, automatic local backups) —
+the trial deployment used before any AWS move — see the runbook in
+[`deployment/README.md`](deployment/README.md). In short:
+
+```bash
+cp deployment/env.prod.example deployment/.env.prod   # then edit secrets + LAN IP
+make prod-up            # build + start the production stack (detached)
+make prod-seed          # master data only (no demo data)
+make prod-superuser     # create the admin login
+make backup             # on-demand DB backup -> data/backups/
+```
+
+This is separate from `make up` (the dev stack) and uses `config.settings.local_prod`.
+
 ## Current Status
 
-Phases M0–M5 are done: scaffolding; auth + role matrix, master data, products, and the audit foundation; the stock ledger core with purchases and collection; purchase refunds/cancellations; shipments + receiving (including the Dubai→Karachi transfer); and sales + stock adjustments. Next phase is M6: dashboard, reports, Excel/PDF exports, and admin stock valuation (see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
+Phases M0–M7 are done: scaffolding; auth + role matrix, master data, products, and the
+audit foundation; the stock ledger core with purchases and collection; purchase
+refunds/cancellations; shipments + receiving (including the Dubai→Karachi transfer);
+sales + stock adjustments; dashboard, reports, Excel/PDF exports, and admin stock
+valuation; and hardening (attachments, theming/dark mode, responsive shell, demo seed).
+The **M9 offline/local production stack** is implemented (see above), pending a first run
+on the target machine. **M8 (AWS deployment) is deferred** until after the offline trial
+(see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).

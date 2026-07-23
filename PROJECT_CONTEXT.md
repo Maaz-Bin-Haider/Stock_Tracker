@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Plan change (2026-07-23): AWS deployment postponed — client will run the system offline/locally first and deploy to AWS only if satisfied. Next: **M9 offline/local production use**; **M8 AWS deployment is deferred to future**.
+- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Plan change (2026-07-23): AWS deployment postponed — client will run the system offline/locally first and deploy to AWS only if satisfied. **M9 offline/local production stack is implemented and verified on a live Docker run** (prod compose + gunicorn + Next.js prod build + persistent volumes + local backup/restore + `create_admin` + operator make targets & runbook; full smoke test incl. login and a restore drill passed on localhost). Remaining: deploy on the actual office machine/LAN with a real `.env.prod` and walk the daily flow with real users. **M8 AWS deployment remains deferred to future.**
 
 ## Current Project Structure
 
@@ -102,6 +102,22 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-23 (later — M9 offline stack implemented)
+
+- Built the offline/local production stack (Phase M9) alongside the untouched dev stack — the app now runs in production mode on a single machine / office LAN with no cloud dependency:
+  - **Local production settings** `config/settings/local_prod.py`: `DEBUG=False`, `SECRET_KEY` required from env (raises a helpful `ImproperlyConfigured` if missing), `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` from env, and secure cookies/HSTS **off by default** for plain HTTP on a trusted LAN (opt-in via `DJANGO_SECURE_COOKIES=1` when TLS is added). Kept separate from `prod.py` (the AWS/TLS profile) on purpose — secure cookies over plain HTTP would break login.
+  - **Production process managers:** `deployment/docker-compose.prod.yml` runs the backend under **gunicorn** (`migrate` + `collectstatic` then `gunicorn config.wsgi`) and the frontend from a new `src/frontend/Dockerfile.prod` that bakes `next build` into the image and serves with `next start`. Added `gunicorn>=23` to backend deps.
+  - **Persistence & survivability:** named volumes `postgres_data`/`media_files`/`exports_data`/`static_files`; every service `restart: unless-stopped` so the stack returns after a reboot. DB port is **not** published (internal only).
+  - **nginx prod config** `deployment/nginx/prod.conf`: serves collected Django static + uploaded media from the shared volumes (gunicorn doesn't serve static), proxies `/api` `/admin` to gunicorn and `/` to `next start`; host port via `${HTTP_PORT:-8080}`.
+  - **Local backups:** a `backup` sidecar runs `pg_dump` on a schedule into host `data/backups/` with retention pruning; plus `scripts/backup.sh` (one-shot / cron) and `scripts/restore.sh` (guarded, destructive restore with a `yes` prompt that stops app services, loads the dump, restarts).
+  - **Operator ergonomics:** `make prod-up/prod-down/prod-logs/prod-seed/prod-superuser/backup/restore`, a committed `deployment/env.prod.example` template (real `.env.prod` gitignored), and a full runbook `deployment/README.md`.
+  - **Admin bootstrap fix (`apps/accounts/management/commands/create_admin.py`):** found during verification that permissions key off `user.role`, not `is_superuser`, so a plain `createsuperuser` leaves the account at the VIEWER default — read-only in the app, no admin nav. Added an idempotent `create_admin` command (creates/promotes to `role=ADMIN` + staff + superuser, non-interactive via `--username/--email/--password` or `DJANGO_ADMIN_*` env, interactive prompt otherwise); `make prod-superuser` now calls it.
+- **Verified end-to-end on a live Docker run** (`docker compose ... up -d --build`, all 7 services healthy): health `200`, Next.js prod homepage/login `200`, Django admin static `200` (proves collectstatic → shared static volume → nginx), `migrate` created 36 tables, `seed` loaded master data, `create_admin` produced a working admin, full CSRF→login flow returns `role":"ADMIN"`, named volumes present, the backup sidecar + `scripts/backup.sh` produced a valid 36-table dump, and the **restore drill** (`scripts/restore.sh`) restored cleanly with the admin login working `200` afterward. Also confirmed earlier: `manage.py check` under `local_prod`, refusal to boot without `DJANGO_SECRET_KEY`, secure-cookie toggle, ruff clean, gitignore rules.
+  - Minor observed wart (not blocking): the backup sidecar's very first dump races the backend's `migrate` and can capture an empty DB (368 bytes); it self-corrects on the next scheduled cycle. Manual/cron backups after startup are full.
+- **Still needs the actual office machine/LAN:** real `.env.prod` with the machine's LAN IP in `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, browse from a second machine over the LAN, and walk the SRS §12 daily flow with real users. The verification above ran against `localhost` on the dev host.
+- Files: `src/backend/config/settings/local_prod.py`, `src/backend/apps/accounts/management/commands/{__init__.py,create_admin.py}` (+ `management/__init__.py`), `src/backend/pyproject.toml`, `src/frontend/Dockerfile.prod`, `src/frontend/.dockerignore`, `deployment/docker-compose.prod.yml`, `deployment/nginx/prod.conf`, `deployment/env.prod.example`, `deployment/README.md`, `scripts/backup.sh`, `scripts/restore.sh`, `Makefile`, `.gitignore`, `README.md`, `data/backups/.gitkeep`.
+- Next recommended step: deploy the offline stack on the actual target machine (real `.env.prod` + LAN test + daily-flow walkthrough); once the trial is signed off, proceed to the deferred **M8 — AWS deployment**.
 
 ### 2026-07-23 (plan change — AWS postponed, new M9 offline phase)
 
@@ -255,16 +271,19 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 **Plan change (2026-07-23): AWS deployment (M8) is postponed.** The client will run the system **offline/locally first** for a trial period; AWS deployment proceeds only if that trial is satisfactory. The immediate next phase is now **M9 — offline/local production use**, and **M8 is deferred to future**.
 
-**TODO (next session): Phase M9 — offline/local production use.** M0–M7 are done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough exercised against the live stack). Goal: make the existing Docker Compose stack reliable and operable for real daily use on a single local machine or office LAN, with **no cloud dependency**:
+**Phase M9 — offline/local production use: code-complete, pending an on-machine run.** M0–M7 remain done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough). The offline stack is built alongside the untouched dev stack:
 
-- [ ] Local production settings (`config/settings/prod.py` or a `local_prod` profile): `DEBUG=False`, secrets from a local `.env`, `ALLOWED_HOSTS` covering the host's LAN IP/hostname; TLS/HSTS optional on a trusted LAN.
-- [ ] Production process managers: gunicorn for the backend behind nginx, and a Next.js production build (`next build` + `next start`) — the containers currently run `runserver` / `next dev`.
-- [ ] Persistent local storage: named Docker volumes for Postgres data, uploaded media, and generated exports (`EXPORTS_ROOT`) so nothing is lost across restarts; local filesystem storage stays (no S3).
-- [ ] Survivability: `restart: unless-stopped` on the Compose services so the stack comes back after a machine reboot.
-- [ ] LAN access: nginx reachable from other machines on the local network so multiple office users can use the system.
-- [ ] Local backups: scheduled `pg_dump` (+ media/exports) to a local backup folder (cron or a make target) — **schedule, retention, and a tested restore drill remain the open business decision**; propose defaults (daily, 30 days, documented + verified restore) and confirm.
-- [ ] Operator ergonomics: simple `make` targets / small scripts for start, stop, and backup, documented in `README.md` for non-technical operators.
-- [ ] Offline smoke run: migrate, seed master data (no `--demo` in prod), create real users, and run the daily flow end-to-end in this local production configuration.
+- [x] Local production settings — `config/settings/local_prod.py`: `DEBUG=False`, secret required from env, LAN `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` from env, secure cookies/HSTS off by default for plain-HTTP LAN (opt-in `DJANGO_SECURE_COOKIES=1`).
+- [x] Production process managers — `deployment/docker-compose.prod.yml` runs gunicorn (after `migrate`+`collectstatic`); `src/frontend/Dockerfile.prod` bakes `next build` and serves via `next start`. `gunicorn>=23` added to deps.
+- [x] Persistent local storage — named volumes `postgres_data`/`media_files`/`exports_data`/`static_files`; nginx serves static + media from the shared volumes (`deployment/nginx/prod.conf`).
+- [x] Survivability — `restart: unless-stopped` on every service.
+- [x] LAN access — nginx published on `${HTTP_PORT:-8080}`; env-driven allowed hosts / CSRF origins; DB kept internal (unpublished).
+- [x] Local backups — `backup` sidecar (`pg_dump` on a schedule → `data/backups/`, retention prune) + `scripts/backup.sh` (one-shot/cron) + guarded `scripts/restore.sh`. Defaults: daily, 30 days.
+- [x] Operator ergonomics — `make prod-up/prod-down/prod-logs/prod-seed/prod-superuser/backup/restore`, `deployment/env.prod.example`, runbook `deployment/README.md`.
+- [x] **Smoke run verified on a live Docker stack** (localhost, all 7 services healthy): health/homepage/login/admin-static all `200`, migrate (36 tables) + seed + `create_admin` (role ADMIN), full CSRF→login flow, backup sidecar + `scripts/backup.sh` dump, and a passing restore drill.
+- [ ] **Remaining — on the actual office machine/LAN:** real `.env.prod` with the machine's LAN IP in `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, browse from a second computer over the LAN, and walk the SRS §12 daily flow with real users.
+
+Business decision still open: confirm the backup **schedule/retention** defaults (daily / 30 days) and who copies `data/backups/` off the machine.
 
 **Deferred — Phase M8 — AWS deployment (future, only if the offline trial succeeds).** Most M9 work carries over; the deltas are: swap local storage for an S3-compatible bucket via django-storages (public-ish media for uploads, **private** prefix + authenticated download for exports — `EXPORTS_ROOT` swap is configuration only), run the Compose stack on a single EC2 instance with a domain + TLS certificates, and move backups from local disk to `pg_dump` → S3 on a schedule.
 
