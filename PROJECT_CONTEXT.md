@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Next: M8 AWS deployment.
+- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Plan change (2026-07-23): AWS deployment postponed — client will run the system offline/locally first and deploy to AWS only if satisfied. Next: **M9 offline/local production use**; **M8 AWS deployment is deferred to future**.
 
 ## Current Project Structure
 
@@ -85,9 +85,10 @@ Stock_Tracker/
 
 ## Open Items
 
-- Backup schedule, retention, and restore process are deferred.
+- **AWS deployment (M8) is postponed (2026-07-23):** the client will run the system offline/locally (M9) first, then deploy to AWS only if satisfied. M8 is now deferred to future.
+- Backup schedule, retention, and restore process are deferred — for M9 this is a **local** `pg_dump` backup + tested restore (moves to S3 in M8).
 - Final report columns can be refined after business review.
-- Final AWS architecture will be decided after local testing, with S3-compatible storage expected for uploaded invoices and generated reports.
+- Final AWS architecture will be decided after the offline trial, with S3-compatible storage expected for uploaded invoices and generated reports.
 
 ## Documentation Maintenance Rule
 
@@ -101,6 +102,13 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-07-23 (plan change — AWS postponed, new M9 offline phase)
+
+- **Plan change:** AWS deployment (M8) is postponed. The client will run the system **offline/locally** for a trial period first and deploy to AWS **only if satisfied**. Introduced a new phase **M9 — offline/local production use** as the immediate next phase; **M8 (AWS deployment) is marked deferred to future**. (Numbering note: M8 keeps its lower number but M9 is executed first; most M9 work — prod settings, gunicorn/Next build, persistent volumes, backup/restore — carries directly into M8, where local disk/`pg_dump` is swapped for S3 + EC2.)
+- **M9 scope:** run the existing Docker Compose stack in production mode on a single local machine / office LAN with no cloud dependency — local production settings (`DEBUG=False`, secrets from local `.env`, LAN `ALLOWED_HOSTS`), gunicorn + Next.js production build (replacing `runserver`/`next dev`), persistent named Docker volumes for DB/media/exports, `restart: unless-stopped` to survive reboots, LAN reachability via nginx, scheduled **local** `pg_dump` backups with a documented + tested restore, simple start/stop/backup make targets for non-technical operators, and an offline smoke run of the full daily flow. No code changes yet — this entry records the re-plan only.
+- **Files updated (docs only):** `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15 (M8 relabeled deferred, added M9 row + execution-order note), `CLAUDE.md` (project-state "next phase" line), root `PROJECT_CONTEXT.md` (status line, Open Items, this entry, Next Recommended Step).
+- **Next recommended step:** **Phase M9 — offline/local production use** (see the detailed checklist under "Next Recommended Step" below).
 
 ### 2026-07-16 (later — M7)
 
@@ -245,12 +253,19 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**TODO (next session): Phase M8 — AWS deployment.** M0–M7 are done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough exercised against the live stack). Per `TECHNICAL_ARCHITECTURE.md` §12/§15 and SRS §9.4:
+**Plan change (2026-07-23): AWS deployment (M8) is postponed.** The client will run the system **offline/locally first** for a trial period; AWS deployment proceeds only if that trial is satisfactory. The immediate next phase is now **M9 — offline/local production use**, and **M8 is deferred to future**.
 
-- [ ] Production settings (`config/settings/prod.py`): secrets from env, `DEBUG=False`, allowed hosts, secure cookies/HSTS, gunicorn behind nginx with TLS, Next.js production build (the frontend container currently runs `next dev`).
-- [ ] Storage: S3-compatible bucket via django-storages — public-ish media for uploads per current serving model, **private** prefix + authenticated download for report exports (`EXPORTS_ROOT` swap is configuration only).
-- [ ] Single EC2 instance running the Compose stack with prod settings; domain + TLS certificates.
-- [ ] Backups: `pg_dump` to S3 on a schedule — **schedule, retention, and restore drill remain the open business decision**; propose defaults (daily, 30 days, documented restore) and confirm.
-- [ ] Deployment smoke run: migrate, seed master data (no `--demo` in prod), create real users, re-run the acceptance checklist against the instance.
+**TODO (next session): Phase M9 — offline/local production use.** M0–M7 are done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough exercised against the live stack). Goal: make the existing Docker Compose stack reliable and operable for real daily use on a single local machine or office LAN, with **no cloud dependency**:
+
+- [ ] Local production settings (`config/settings/prod.py` or a `local_prod` profile): `DEBUG=False`, secrets from a local `.env`, `ALLOWED_HOSTS` covering the host's LAN IP/hostname; TLS/HSTS optional on a trusted LAN.
+- [ ] Production process managers: gunicorn for the backend behind nginx, and a Next.js production build (`next build` + `next start`) — the containers currently run `runserver` / `next dev`.
+- [ ] Persistent local storage: named Docker volumes for Postgres data, uploaded media, and generated exports (`EXPORTS_ROOT`) so nothing is lost across restarts; local filesystem storage stays (no S3).
+- [ ] Survivability: `restart: unless-stopped` on the Compose services so the stack comes back after a machine reboot.
+- [ ] LAN access: nginx reachable from other machines on the local network so multiple office users can use the system.
+- [ ] Local backups: scheduled `pg_dump` (+ media/exports) to a local backup folder (cron or a make target) — **schedule, retention, and a tested restore drill remain the open business decision**; propose defaults (daily, 30 days, documented + verified restore) and confirm.
+- [ ] Operator ergonomics: simple `make` targets / small scripts for start, stop, and backup, documented in `README.md` for non-technical operators.
+- [ ] Offline smoke run: migrate, seed master data (no `--demo` in prod), create real users, and run the daily flow end-to-end in this local production configuration.
+
+**Deferred — Phase M8 — AWS deployment (future, only if the offline trial succeeds).** Most M9 work carries over; the deltas are: swap local storage for an S3-compatible bucket via django-storages (public-ish media for uploads, **private** prefix + authenticated download for exports — `EXPORTS_ROOT` swap is configuration only), run the Compose stack on a single EC2 instance with a domain + TLS certificates, and move backups from local disk to `pg_dump` → S3 on a schedule.
 
 Deferred small items (unchanged): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), per-breakpoint DataTable column priorities + Playwright viewport/theme screenshot flows (§9.2).
