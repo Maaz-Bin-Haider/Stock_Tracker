@@ -30,6 +30,7 @@ This repository contains the planning documents, original workbook reference, an
 - [Non-Technical Execution Flow](docs/business-flow/EXECUTION_FLOW_NON_TECHNICAL.md)
 - [System Diagrams](docs/architecture/SYSTEM_DIAGRAMS.md)
 - [Technical Architecture](docs/architecture/TECHNICAL_ARCHITECTURE.md)
+- [Local Trial Setup and Recovery Guide](LOCAL_SETUP_GUIDE.md)
 
 Diagram PDF exports are stored in:
 
@@ -76,15 +77,15 @@ Next.js production build behind nginx, persistent volumes, automatic local backu
 the trial deployment used before any AWS move — see the runbook in
 [`deployment/README.md`](deployment/README.md). In short:
 
-```bash
-cp deployment/env.prod.example deployment/.env.prod   # then edit secrets + LAN IP
-make prod-up            # build + start the production stack (detached)
-make prod-seed          # master data only (no demo data)
-make prod-superuser     # create the admin login
-make backup             # on-demand DB backup -> data/backups/
+```powershell
+# On the fresh Windows trial machine; private secrets are generated automatically:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
 ```
 
 This is separate from `make up` (the dev stack) and uses `config.settings.local_prod`.
+The authoritative [local setup guide](LOCAL_SETUP_GUIDE.md) creates a fresh Windows
+installation with no Mac testing data, installs a one-click Windows Desktop shortcut,
+and configures database/uploaded-file backups every 12 hours with 120-day retention.
 
 ## Current Status
 
@@ -93,6 +94,9 @@ audit foundation; the stock ledger core with purchases and collection; purchase
 refunds/cancellations; shipments + receiving (including the Dubai→Karachi transfer);
 sales + stock adjustments; dashboard, reports, Excel/PDF exports, and admin stock
 valuation; and hardening (attachments, theming/dark mode, responsive shell, demo seed).
-The **M9 offline/local production stack** is implemented (see above), pending a first run
-on the target machine. **M8 (AWS deployment) is deferred** until after the offline trial
-(see `docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
+The **M9 offline/local production stack** is implemented, and manual functional testing
+passed on 2026-08-11. The immediate plan is a three-month, single-Admin trial on a
+different Windows machine using a fresh database and no testing data. The Windows
+Desktop shortcut and 12-hour automatic backups are included. **M8 (AWS deployment) is
+deferred** until the trial is completed and the client chooses to proceed (see
+`docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).

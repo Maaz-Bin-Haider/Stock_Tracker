@@ -732,3 +732,19 @@ Decisions confirmed with the client:
   - Class Diagram
   - ER Diagram / Database Design
 - After each future change, the root-level `PROJECT_CONTEXT.md` should be updated with the change summary, affected files, open items, and next recommended step.
+
+### Batch 11 Requirements - Three-Month Local Trial (2026-08-11)
+
+- The system will be installed fresh on a separate Windows machine and used there
+  for approximately three months before any server deployment decision. No Mac
+  testing data will be transferred.
+- One person will use the system during this period, with the Admin role.
+- If no blocking problem occurs during the trial, deployment to a server/AWS can
+  proceed afterward.
+- While the Docker stack is online, automatically create database and uploaded-file
+  backups immediately on backup-service startup and every 12 hours afterward.
+- Keep local backup pairs in `data/backups/` for 120 days so the entire trial is covered.
+- The non-technical operator must be able to double-click a Windows Desktop shortcut
+  that starts Docker/the application when necessary and opens the login page.
+- A root-level setup and recovery guide must explain cloning, configuration,
+  initialization, Desktop launcher installation, backup verification, and restore.

@@ -1,97 +1,69 @@
 # Offline / Local Production Deployment (Phase M9)
 
 Run the SwissTech Stock Tracker in **production mode on a single machine or office
-LAN**, with no cloud dependency. This is the trial deployment the business uses
-before deciding on AWS (Phase M8). It runs gunicorn + a Next.js production build
+LAN**, with no cloud dependency. The immediate plan is a three-month trial on a
+separate Windows machine with a fresh database and one Admin operator before deciding
+on AWS (Phase M8). It runs gunicorn + a Next.js production build
 behind nginx, keeps all data in persistent Docker volumes, survives reboots, and
 takes automatic local database backups.
 
-> Difference from `make up`: that command is the **development** stack
-> (`docker-compose.yml`, `runserver` + `next dev`, source live-reload). Everything
-> here uses `docker-compose.prod.yml` and the `make prod-*` targets instead.
+> Difference from `make up`: that command is the Mac/developer stack. The Windows
+> trial uses `docker-compose.prod.yml` through the PowerShell tools documented in
+> root `LOCAL_SETUP_GUIDE.md`.
 
 ## What you need
 
-- A machine (Linux/macOS/Windows) with **Docker** and **Docker Compose** installed.
-- The machine's **LAN IP address** (e.g. `192.168.1.50`) so other office
-  computers can reach it. Find it with `ipconfig` (Windows) or `ip addr` / `ifconfig`.
+- The target Windows machine with **Git for Windows** and **Docker Desktop** using Linux containers.
+- A new Git clone and new Docker volumes; do not transfer Mac testing data.
 
 ## First-time setup
 
-1. **Create the config file** from the template and edit it:
+The full authoritative process is in root `LOCAL_SETUP_GUIDE.md`. In summary:
 
-   ```bash
-   cp deployment/env.prod.example deployment/.env.prod
+1. Clone the repository into `C:\SwissTech\Stock_Tracker`.
+2. **Run the guarded fresh-Windows initializer:**
+
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\setup-windows.ps1
    ```
 
-   Open `deployment/.env.prod` and set at least:
-   - `DJANGO_SECRET_KEY` — a random key. Generate one with:
-     `python -c "import secrets; print(secrets.token_urlsafe(50))"`
-   - `POSTGRES_PASSWORD` — a strong database password.
-   - `DJANGO_ALLOWED_HOSTS` — add the machine's LAN IP, e.g.
-     `localhost,127.0.0.1,backend,192.168.1.50`
-   - `DJANGO_CSRF_TRUSTED_ORIGINS` — the exact address users type in the browser,
-     **with** `http://` and the port, e.g. `http://192.168.1.50:8080`
-   - `HTTP_PORT` — leave `8080`, or set `80` to serve at `http://<ip>/`.
-
-   `deployment/.env.prod` is gitignored — it holds secrets and is never committed.
-
-2. **Start the stack** (builds images the first time — a few minutes):
-
-   ```bash
-   make prod-up
-   ```
-
-3. **Seed master data** (locations, currencies, GST rates — **no** demo data in
-   production) and **create the admin user**:
-
-   ```bash
-   make prod-seed
-   make prod-superuser   # creates an ADMIN-role superuser (prompts for username/password)
-   ```
-
-   > `make prod-superuser` runs `create_admin`, not Django's `createsuperuser`:
-   > the app grants access by **role**, and a plain superuser would default to the
-   > read-only Viewer role. `create_admin` sets the role to Admin.
-
-4. **Open the app** from any machine on the LAN:
-   `http://<machine-lan-ip>:8080` (or `:80` if you set `HTTP_PORT=80`).
+   It generates a gitignored `.env.prod` with random machine-specific secrets,
+   refuses to initialize if user/business records already exist, seeds master
+   settings only, creates the Admin, installs the Windows shortcut, and takes the
+   first backup. After setup, verify all business pages are empty.
 
 ## Day-to-day operation
 
 | Task | Command |
 | --- | --- |
-| Start / update the stack | `make prod-up` |
-| Stop the stack | `make prod-down` |
-| Follow logs | `make prod-logs` |
-| Back up the database now | `make backup` |
-| Restore from a backup | `make restore FILE=data/backups/stock_tracker-YYYYmmdd-HHMMSS.sql.gz` |
+| Start and open in browser (Windows) | Double-click **SwissTech Stock Tracker** on the Desktop |
+| Reinstall Windows shortcut | `powershell.exe -ExecutionPolicy Bypass -File scripts\install-desktop-launcher-windows.ps1` |
+| Extra manual backup (Windows) | `powershell.exe -ExecutionPolicy Bypass -File scripts\backup-windows.ps1` |
+| Follow logs | `docker compose -f deployment\docker-compose.prod.yml --env-file deployment\.env.prod logs --tail=100` |
+| Restore matching backup pair | `powershell.exe -ExecutionPolicy Bypass -File scripts\restore-windows.ps1 ...` (see root guide) |
 
 Because every service is set to `restart: unless-stopped`, the whole stack comes
 back automatically after a machine reboot (as long as Docker starts on boot).
 
 ## Backups
 
-- A **backup sidecar** runs `pg_dump` automatically into `data/backups/` — daily
-  by default (`BACKUP_INTERVAL_SECONDS`), keeping 30 days (`BACKUP_RETENTION_DAYS`).
-- Run an immediate backup any time with `make backup`.
+- A hardened **backup sidecar** creates a PostgreSQL dump and uploaded-media
+  archive in `data/backups/` immediately on startup and every 12 hours while the
+  stack is online (`BACKUP_INTERVAL_SECONDS=43200`).
+- Matching `stock_tracker-*.sql.gz` and `stock_tracker-media-*.tar.gz` files are
+  retained for 120 days, covering the three-month trial plus a margin.
+- Run an immediate backup with `scripts\backup-windows.ps1` as shown above.
 - **Copy `data/backups/` off this machine regularly** (USB drive, network share) —
   a local backup does not protect against the machine itself failing.
-- Prefer host scheduling over the sidecar? Add a cron entry (repo root):
-
-  ```cron
-  0 2 * * * cd /path/to/Stock_Tracker && scripts/backup.sh >> data/backups/backup.log 2>&1
-  ```
-
 ### Restore drill (do this once before going live)
 
 1. Note some current data (e.g. a product name).
-2. `make backup`
-3. `make restore FILE=data/backups/<the-file>.sql.gz` and confirm with `yes`.
-4. Reload the app and confirm the data is intact.
+2. Run `scripts\backup-windows.ps1` through PowerShell.
+3. Run `scripts\restore-windows.ps1` with the matching SQL and media files.
+4. Type `YES`, then reload the app and confirm the data and uploads.
 
 Restoring is destructive — it overwrites the current database — so the script
-stops the app services, asks you to type `yes`, then reloads the dump and restarts.
+stops the app services, asks for `YES`, reloads the dump/media, and restarts.
 
 ## Data & persistence
 

@@ -4,7 +4,8 @@ PROD_COMPOSE = docker compose -f deployment/docker-compose.prod.yml --env-file d
 VENV = .venv/bin
 
 .PHONY: up down logs seed venv test lint typecheck \
-	prod-up prod-down prod-logs prod-seed prod-superuser backup restore
+	prod-up prod-down prod-logs prod-seed prod-superuser local-open \
+	desktop-launcher backup restore restore-media
 
 seed:
 	$(COMPOSE) exec backend python manage.py seed
@@ -55,9 +56,21 @@ prod-seed:
 prod-superuser:
 	$(PROD_COMPOSE) exec backend python manage.py create_admin
 
+# Start the local production stack if needed and open it in the browser (macOS).
+local-open:
+	scripts/open-stock-tracker.command
+
+# One-time installer: add a clickable launcher to the current user's Desktop (macOS).
+desktop-launcher:
+	scripts/install-desktop-launcher.sh
+
 backup:
 	scripts/backup.sh
 
 # Usage: make restore FILE=data/backups/stock_tracker-YYYYmmdd-HHMMSS.sql.gz
 restore:
 	scripts/restore.sh $(FILE)
+
+# Usage: make restore-media FILE=data/backups/stock_tracker-media-YYYYmmdd-HHMMSS.tar.gz
+restore-media:
+	scripts/restore-media.sh $(FILE)

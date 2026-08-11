@@ -14,12 +14,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/deployment/docker-compose.prod.yml"
 ENV_FILE="$REPO_ROOT/deployment/.env.prod"
 BACKUP_DIR="$REPO_ROOT/data/backups"
-RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
+configured_retention="$(awk -F= '$1 == "BACKUP_RETENTION_DAYS" {print $2}' "$ENV_FILE" | tail -n 1 | tr -d '[:space:]\"')"
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-${configured_retention:-120}}"
 
 mkdir -p "$BACKUP_DIR"
 
 ts="$(date +%Y%m%d-%H%M%S)"
 out="$BACKUP_DIR/stock_tracker-$ts.sql.gz"
+media_out="$BACKUP_DIR/stock_tracker-media-$ts.tar.gz"
 
 echo "[backup] dumping database -> $out"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T postgres \
@@ -34,6 +36,16 @@ if [ ! -s "$out" ]; then
 fi
 
 echo "[backup] ok ($(du -h "$out" | cut -f1)): $out"
+echo "[backup] archiving uploaded files -> $media_out"
+docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend \
+  tar -czf - -C /app/media . > "$media_out"
+if ! tar -tzf "$media_out" >/dev/null; then
+  echo "[backup] ERROR: media archive is invalid, removing $media_out" >&2
+  rm -f "$media_out"
+  exit 1
+fi
+echo "[backup] media ok ($(du -h "$media_out" | cut -f1)): $media_out"
 echo "[backup] pruning dumps older than ${RETENTION_DAYS} days"
 find "$BACKUP_DIR" -name 'stock_tracker-*.sql.gz' -type f -mtime "+${RETENTION_DAYS}" -delete
+find "$BACKUP_DIR" -name 'stock_tracker-media-*.tar.gz' -type f -mtime "+${RETENTION_DAYS}" -delete
 echo "[backup] done"

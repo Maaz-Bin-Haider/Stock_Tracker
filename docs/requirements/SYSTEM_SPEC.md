@@ -896,8 +896,12 @@ Development file storage should use Django `MEDIA_ROOT`, for example `media/uplo
 
 ### Deployment
 
-- Local testing comes first.
-- AWS deployment comes after local confirmation.
+- Local testing comes first: one Admin operator will use a fresh installation on
+  a separate Windows machine for approximately three months. Mac test data shall
+  not be transferred.
+- The local operator shall be able to start and open the system from a Windows
+  Desktop shortcut without using PowerShell.
+- AWS deployment comes after the three-month local trial if no blocking problem occurs.
 - Initial AWS deployment can run on a single EC2 instance.
 - Development file storage should use the local Django media folder.
 - Deployment file storage should use S3-compatible object storage for uploaded invoices and generated reports.
@@ -905,8 +909,13 @@ Development file storage should use Django `MEDIA_ROOT`, for example `media/uplo
 
 ### Backup
 
-- Automatic backup is desired.
-- Exact backup schedule, retention, and restore process are deferred.
+- During the local trial, automatically create a PostgreSQL dump and an uploaded
+  media archive immediately on backup-service startup and every 12 hours while
+  the Docker stack is online.
+- Store both timestamp-matched files in `data/backups/` and retain them for 120 days.
+- Provide guarded restore commands for the database and uploaded media.
+- Copy the backup folder to separate trusted storage regularly; the final
+  server/cloud backup policy is decided during M8.
 
 ## 24. Suggested Database Tables
 

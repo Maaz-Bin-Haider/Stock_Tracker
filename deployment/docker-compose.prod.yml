@@ -117,29 +117,50 @@ services:
       PGUSER: ${POSTGRES_USER:-stock_tracker}
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployment/.env.prod}
       PGDATABASE: ${POSTGRES_DB:-stock_tracker}
-      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-43200}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-120}
     volumes:
       - ../data/backups:/backups
+      - media_files:/media:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      backend:
         condition: service_healthy
     entrypoint:
       - sh
       - -c
       - |
-        echo "Backup sidecar: every ${BACKUP_INTERVAL_SECONDS:-86400}s, keep ${BACKUP_RETENTION_DAYS:-30} days, into /backups"
+        echo "Backup sidecar: every ${BACKUP_INTERVAL_SECONDS:-43200}s, keep ${BACKUP_RETENTION_DAYS:-120} days, into /backups"
         while true; do
           ts=$$(date +%Y%m%d-%H%M%S)
           out="/backups/stock_tracker-$$ts.sql.gz"
+          media_out="/backups/stock_tracker-media-$$ts.tar.gz"
+          tmp="/tmp/stock_tracker-$$ts.sql"
+          db_ok=0
           echo "[backup] $$ts -> $$out"
-          if pg_dump --clean --if-exists | gzip > "$$out"; then
-            echo "[backup] ok: $$out"
+          if pg_dump --clean --if-exists --file="$$tmp" &&
+             gzip -c "$$tmp" > "$$out" &&
+             gzip -t "$$out"; then
+            echo "[backup] ok: $$out ($$(du -h "$$out" | cut -f1))"
+            db_ok=1
           else
             echo "[backup] FAILED: $$out"; rm -f "$$out"
           fi
-          find /backups -name 'stock_tracker-*.sql.gz' -type f -mtime +${BACKUP_RETENTION_DAYS:-30} -delete
-          sleep ${BACKUP_INTERVAL_SECONDS:-86400}
+          rm -f "$$tmp"
+          if [ "$$db_ok" -eq 1 ]; then
+            echo "[backup] media -> $$media_out"
+            if tar -czf "$$media_out" -C /media . && tar -tzf "$$media_out" >/dev/null; then
+              echo "[backup] media ok: $$media_out ($$(du -h "$$media_out" | cut -f1))"
+            else
+              echo "[backup] media FAILED: $$media_out"; rm -f "$$media_out"
+            fi
+          else
+            echo "[backup] media skipped because the database dump failed"
+          fi
+          find /backups -name 'stock_tracker-*.sql.gz' -type f -mtime +${BACKUP_RETENTION_DAYS:-120} -delete
+          find /backups -name 'stock_tracker-media-*.tar.gz' -type f -mtime +${BACKUP_RETENTION_DAYS:-120} -delete
+          sleep ${BACKUP_INTERVAL_SECONDS:-43200}
         done
 
 volumes:

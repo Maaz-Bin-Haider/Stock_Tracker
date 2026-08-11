@@ -134,7 +134,9 @@ Deployment plan:
 - Barcode/QR scanning is not required.
 - Low-stock and reorder alerts are not required.
 - Profit calculation is not required.
-- Backup details are deferred, but automatic backup is desired later.
+- For the three-month local trial, verified database and uploaded-file backups
+  shall run every 12 hours while the Docker stack is online and be retained for
+  120 days. The long-term server/cloud backup policy remains deferred.
 
 ## 3. System Modules
 
@@ -1027,9 +1029,10 @@ The system should be modular so future locations, currencies, GST rules, compani
 
 ### 7.8 Backup
 
-Automatic backup is desired.
-
-Backup schedule, retention, and restore process are deferred and shall be finalized later.
+For the local trial, the system shall create a PostgreSQL dump and uploaded-file
+archive immediately when the backup service starts and every 12 hours afterward
+while the system is online. Local backups shall be retained for 120 days in
+`data/backups/`, and documented database/media restore procedures shall be provided.
 
 ## 8. Business Rules
 
@@ -1118,13 +1121,13 @@ The following are out of scope for the first version:
 - reorder alerts
 - Excel bulk import
 - multi-company active operation
-- detailed backup/restore design
+- final server/cloud backup architecture
 
 ## 11. Open Items
 
 The following items need final confirmation before development:
 
-- Final backup schedule, retention, and restore process.
+- Final server/cloud backup schedule and off-machine storage policy after the local trial.
 - Final report columns after business review.
 - Final AWS deployment architecture after local testing.
 
@@ -1150,3 +1153,5 @@ The system will be considered acceptable when:
 - admin can view and export stock valuation at weighted average purchase cost, and valuation reconciles with the stock ledger
 - light and dark themes both render all pages professionally, and theme preference is remembered
 - pages work correctly on desktop, small laptop, iPad, and small tablet screen sizes
+- the local trial creates verified database and uploaded-file backups every 12 hours while online
+- a non-technical Windows operator can start and open the fresh local system from a Desktop shortcut

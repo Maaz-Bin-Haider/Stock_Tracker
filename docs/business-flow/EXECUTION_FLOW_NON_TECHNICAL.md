@@ -577,4 +577,9 @@ The first AWS deployment can run on a single EC2 instance.
 
 During development, invoice files and generated reports can be stored in the local Django media folder. During deployment, uploaded files and generated reports should be moved to S3-compatible storage.
 
-Backup details are deferred, but automatic backup is desired for the future.
+For the three-month local trial, the system creates a database backup and uploaded-file
+backup immediately when its backup service starts and every 12 hours while Docker is
+online. The local Admin opens the fresh Windows installation from the **SwissTech
+Stock Tracker** Desktop shortcut. Backups are kept in `data/backups/` for 120 days; the technician copies that
+folder to separate trusted storage regularly. Server/cloud backup design is finalized
+only if the trial proceeds to deployment.

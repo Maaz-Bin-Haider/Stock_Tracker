@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete (scaffolding; auth/master data/products/audit; stock ledger + purchases + collection; purchase refunds/cancellations; shipments + receiving incl. Dubai→Karachi; sales + stock adjustments; dashboard + reports + Excel/PDF exports + admin stock valuation; hardening: theming/dark mode, responsive shell, file attachments + upload report, pagination, demo seed, SRS §12 acceptance run). Plan change (2026-07-23): AWS deployment postponed — client will run the system offline/locally first and deploy to AWS only if satisfied. **M9 offline/local production stack is implemented and verified on a live Docker run** (prod compose + gunicorn + Next.js prod build + persistent volumes + local backup/restore + `create_admin` + operator make targets & runbook; full smoke test incl. login and a restore drill passed on localhost). Remaining: deploy on the actual office machine/LAN with a real `.env.prod` and walk the daily flow with real users. **M8 AWS deployment remains deferred to future.**
+- Implementation status: phases M0–M7 complete and manual functional testing passed on the Mac test environment. **M9 will be a fresh three-month installation on a different Windows machine with one Admin operator.** No Mac test database, Docker volumes, media, or backups will be transferred. Windows-native setup, Desktop shortcut, manual backup/restore tooling, and hardened 12-hour automatic database/media backups are included. **M8 server/AWS deployment remains deferred until the Windows trial finishes without a blocking problem and the client chooses to proceed.**
 
 ## Current Project Structure
 
@@ -46,6 +46,7 @@ Stock_Tracker/
 ## Key Documents
 
 - `README.md`: repository overview and document map.
+- `LOCAL_SETUP_GUIDE.md`: clean-machine clone/setup, Desktop launcher, 12-hour backups, and disaster recovery for the local trial.
 - `docs/USER_GUIDE.md`: non-technical end-user guide for client staff — every screen, button, and workflow with worked examples ("if you do X, then Y").
 - `docs/requirements/PROJECT_CONTEXT.md`: detailed requirements gathering history.
 - `docs/requirements/SYSTEM_SPEC.md`: implementation-oriented system specification.
@@ -86,8 +87,8 @@ Stock_Tracker/
 
 ## Open Items
 
-- **AWS deployment (M8) is postponed (2026-07-23):** the client will run the system offline/locally (M9) first, then deploy to AWS only if satisfied. M8 is now deferred to future.
-- Backup schedule, retention, and restore process are deferred — for M9 this is a **local** `pg_dump` backup + tested restore (moves to S3 in M8).
+- **AWS deployment (M8) is postponed:** the single-Admin local trial runs for approximately three months first; server deployment proceeds only after a successful trial and client approval.
+- Local backup policy is confirmed: database + uploaded-media backup pairs every 12 hours while online, 120-day retention, plus regular off-machine copies by the technician. The final server/cloud policy remains open for M8.
 - Final report columns can be refined after business review.
 - Final AWS architecture will be decided after the offline trial, with S3-compatible storage expected for uploaded invoices and generated reports.
 
@@ -103,6 +104,41 @@ After each project change, update this file with:
 If a change affects requirements, workflows, permissions, entities, database design, or reports, also update the matching detailed document under `docs/`.
 
 ## Change Log
+
+### 2026-08-11 (latest) — Windows target and fresh-data requirement
+
+- Clarified that the real three-month trial will run on a different Windows machine, not the Mac used for manual testing.
+- The Windows installation must be a fresh Git clone with new `.env.prod` secrets and new Docker volumes. Mac test database, media, backups, and Docker state must not be copied; only required master settings are seeded.
+- Reworked root `LOCAL_SETUP_GUIDE.md` as the authoritative Windows guide with explicit clean-data safeguards, PowerShell clone/configuration commands, fresh-data verification, daily operation, updates, and replacement-machine recovery.
+- Added `scripts/setup-windows.ps1` to build the new stack, wait for migrations/health, seed master settings only, create the Admin interactively, install the Desktop shortcut, and create the first post-setup backup pair.
+- Added `scripts/open-stock-tracker-windows.cmd` and `scripts/install-desktop-launcher-windows.ps1`. The resulting **SwissTech Stock Tracker** Windows shortcut starts Docker Desktop/the Compose stack, waits for health, and opens `http://localhost:8080`.
+- Added Windows-native `scripts/backup-windows.ps1` and paired `scripts/restore-windows.ps1` so a technician does not need Bash or Make on the target machine.
+- Made the Windows initializer generate `deployment/.env.prod` automatically with random machine-specific Django/database secrets when it is missing. The private repository contains only the template; the real environment remains gitignored. The existing Mac environment remains a development/test configuration, and a future server deployment will use separate production secrets.
+- Updated README, deployment docs, SRS, system specification, requirements history, architecture, and project guidance from the earlier Mac trial assumption to the confirmed fresh Windows target.
+- The current Mac test data was not deleted or altered; it remains isolated from the future Windows trial.
+- Next recommended step: commit/push these setup changes, then clone on the new Windows machine, run the one setup command, and verify all business pages are empty before live trial entries begin.
+
+### 2026-08-11 (later) — three-month local trial operations
+
+- Confirmed the immediate operating model: one Admin uses the system on one local Mac for approximately three months; server/AWS deployment is considered only after a stable trial.
+- Hardened the automatic backup sidecar: it waits for a healthy migrated backend, uses a temporary uncompressed dump so `pg_dump` failure cannot be hidden by a pipeline, validates the compressed result, and removes failed output.
+- Changed automatic backups to every 12 hours (`43200` seconds) with 120-day retention. Each cycle now creates a timestamp-matched PostgreSQL dump and uploaded-media archive under `data/backups/`; generated report exports remain reproducible and are not backed up.
+- Extended the guarded manual backup/restore tooling with media archive backup and `restore-media`; the manual backup script now reads retention from `.env.prod`.
+- Added `scripts/open-stock-tracker.command`, which starts Docker Desktop/the Compose stack if necessary, waits for the health endpoint, and opens the browser. Added `scripts/install-desktop-launcher.sh` and `make desktop-launcher` for one-time installation of a Desktop icon for the non-technical operator.
+- Added root `LOCAL_SETUP_GUIDE.md` covering prerequisites, Git clone/update, private configuration, initialization, Desktop launcher installation, automatic/manual backup, integrity checks, and recovery on a replacement Mac.
+- Updated requirements, architecture, business flow, deployment documentation, README, Makefile, and project guidance to reflect the confirmed trial model.
+- Open operational item: copy `data/backups/` to encrypted USB or another trusted machine at least weekly and monitor the trial. Final report columns and future server/cloud architecture remain business decisions.
+- Live verification completed: the recreated sidecar logged the 43,200-second schedule and produced a valid 28 KB database dump plus 4 KB media archive; the Desktop launcher was installed at `/Users/apple/Desktop/SwissTech Stock Tracker.command` and passed an end-to-end start/health/browser-open test.
+- Next recommended step: begin the three-month trial, review logs if the launcher reports an error, and copy `data/backups/` off the Mac at least weekly.
+
+### 2026-08-11 — manual testing passed
+
+- The client confirmed that manual functional testing of the local production application passed.
+- The production-mode Docker stack remains the accepted local trial build; automated verification remains at 196 passing backend tests with Ruff, ESLint, TypeScript, and the Next.js production build clean.
+- A live audit confirmed all seven production services, applied migrations, seeded master data, working authentication, and successful frontend/API/static-file health checks through nginx.
+- Operational follow-up: configure the actual office LAN address and test from a second machine. The backup sidecar's startup pipeline also needs failure propagation fixed; `make backup` remains the verified manual backup path.
+- Files updated: `PROJECT_CONTEXT.md`, `README.md`, and `CLAUDE.md`.
+- Next recommended step: fix the backup-sidecar failure handling, then complete the office-LAN rollout. AWS deployment (M8) remains deferred unless the client chooses to proceed.
 
 ### 2026-07-23 (later — M9 offline stack implemented)
 
@@ -270,21 +306,23 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**Plan change (2026-07-23): AWS deployment (M8) is postponed.** The client will run the system **offline/locally first** for a trial period; AWS deployment proceeds only if that trial is satisfactory. The immediate next phase is now **M9 — offline/local production use**, and **M8 is deferred to future**.
+**Current plan (2026-08-11): install M9 fresh on a separate Windows machine for one Admin to use for approximately three months.** The Mac remains a test environment and none of its runtime data transfers. Server/AWS deployment (M8) proceeds only after a stable Windows trial and explicit client approval.
 
-**Phase M9 — offline/local production use: code-complete, pending an on-machine run.** M0–M7 remain done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough). The offline stack is built alongside the untouched dev stack:
+**Phase M9 — offline/local production use: code-complete; manual functional testing passed on 2026-08-11.** M0–M7 remain done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough). The offline stack is built alongside the untouched dev stack:
 
 - [x] Local production settings — `config/settings/local_prod.py`: `DEBUG=False`, secret required from env, LAN `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` from env, secure cookies/HSTS off by default for plain-HTTP LAN (opt-in `DJANGO_SECURE_COOKIES=1`).
 - [x] Production process managers — `deployment/docker-compose.prod.yml` runs gunicorn (after `migrate`+`collectstatic`); `src/frontend/Dockerfile.prod` bakes `next build` and serves via `next start`. `gunicorn>=23` added to deps.
 - [x] Persistent local storage — named volumes `postgres_data`/`media_files`/`exports_data`/`static_files`; nginx serves static + media from the shared volumes (`deployment/nginx/prod.conf`).
 - [x] Survivability — `restart: unless-stopped` on every service.
-- [x] LAN access — nginx published on `${HTTP_PORT:-8080}`; env-driven allowed hosts / CSRF origins; DB kept internal (unpublished).
-- [x] Local backups — `backup` sidecar (`pg_dump` on a schedule → `data/backups/`, retention prune) + `scripts/backup.sh` (one-shot/cron) + guarded `scripts/restore.sh`. Defaults: daily, 30 days.
-- [x] Operator ergonomics — `make prod-up/prod-down/prod-logs/prod-seed/prod-superuser/backup/restore`, `deployment/env.prod.example`, runbook `deployment/README.md`.
+- [x] Local-only access — nginx serves `http://localhost:8080` on the Windows host; the DB stays internal and unpublished.
+- [x] Local backups — hardened backup sidecar + guarded manual tools create database and uploaded-media pairs every 12 hours with 120-day retention and documented restore.
+- [x] Operator ergonomics — Windows `.cmd` launcher + `.lnk` installer, one-time PowerShell setup, Windows-native manual backup/restore, and the root setup/recovery guide. The macOS launcher remains only for the test machine.
 - [x] **Smoke run verified on a live Docker stack** (localhost, all 7 services healthy): health/homepage/login/admin-static all `200`, migrate (36 tables) + seed + `create_admin` (role ADMIN), full CSRF→login flow, backup sidecar + `scripts/backup.sh` dump, and a passing restore drill.
-- [ ] **Remaining — on the actual office machine/LAN:** real `.env.prod` with the machine's LAN IP in `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, browse from a second computer over the LAN, and walk the SRS §12 daily flow with real users.
+- [x] **Manual functional testing passed** — confirmed by the client on 2026-08-11.
+- [x] **Backup sidecar hardened** — dump failure propagation and compressed archive validation are explicit.
+- [ ] **Remaining — fresh Windows rollout:** commit/push the setup changes, clone them on the new Windows machine, initialize new volumes, verify business pages contain no test data, and begin the trial. Copy backup pairs off the Windows machine at least weekly.
 
-Business decision still open: confirm the backup **schedule/retention** defaults (daily / 30 days) and who copies `data/backups/` off the machine.
+Local backup policy is confirmed at **12-hour intervals / 120-day retention**. The final server/cloud backup policy remains a future M8 decision.
 
 **Deferred — Phase M8 — AWS deployment (future, only if the offline trial succeeds).** Most M9 work carries over; the deltas are: swap local storage for an S3-compatible bucket via django-storages (public-ish media for uploads, **private** prefix + authenticated download for exports — `EXPORTS_ROOT` swap is configuration only), run the Compose stack on a single EC2 instance with a domain + TLS certificates, and move backups from local disk to `pg_dump` → S3 on a schedule.
 
