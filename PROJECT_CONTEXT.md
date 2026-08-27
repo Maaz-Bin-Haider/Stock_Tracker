@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete; the production application passed manual testing on Windows. **M8 AWS deployment is approved and its repository implementation is complete, pending the 2026-08-26 Next.js security-release gate and live EC2 execution by the client:** fresh Ubuntu 24.04 ARM64 `t4g.medium` in Mumbai (`ap-south-1`), 50 GB encrypted gp3, manually associated Elastic IP, trusted automatically renewed IP-address HTTPS, hardened public key-only SSH, new Admin/users, and no testing data. The initial deployment keeps database/media/export/backup storage on EBS; backup pairs are copied manually to the Mac and automatic private S3 backup is the next durability upgrade.
+- Implementation status: phases M0–M7 complete; the production application passed manual testing on Windows. **M8 AWS deployment is approved and its repository implementation is complete, with the frontend security gate updated to patched Next.js 15.5.24; live EC2 execution by the client remains:** fresh Ubuntu 24.04 ARM64 `t4g.medium` in Mumbai (`ap-south-1`), 50 GB encrypted gp3, manually associated Elastic IP, trusted automatically renewed IP-address HTTPS, hardened public key-only SSH, new Admin/users, and no testing data. The initial deployment keeps database/media/export/backup storage on EBS; backup pairs are copied manually to the Mac and automatic private S3 backup is the next durability upgrade.
 
 ## Current Project Structure
 
@@ -97,9 +97,9 @@ Stock_Tracker/
 
 - **Live EC2 execution remains:** the client will manually create the documented
   instance/security group/Elastic IP, transfer the clean source, and run the guarded setup.
-- **Required go-live gate:** install the Next.js 15.5.x critical security release
-  announced for 2026-08-26, then repeat the production audit and ARM64 frontend build.
-  Do not expose the instance publicly on the current 15.5.21 package set.
+- **Required go-live gate:** Next.js is locked to patched 15.5.24. Repeat the
+  production audit and ARM64 frontend build immediately before transferring the
+  source and do not deploy if `scripts/check-ec2-frontend-security.sh` fails.
 - Initial EC2 backup policy is confirmed: database + uploaded-media pairs every
   12 hours on encrypted EBS, 120-day retention, and regular manual copies to the Mac.
 - Automatic private S3 backup is the next durability improvement after EC2 stabilizes.
@@ -118,7 +118,29 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-08-25 (latest) — M8 AWS EC2 deployment approved and implemented
+### 2026-08-27 (latest) — Next.js 15.5 security release applied
+
+- Updated Next.js from 15.5.21 to patched Maintenance LTS 15.5.24 without adopting
+  the breaking Next.js 16 major release; refreshed the lockfile and compatible
+  transitive `sharp`/`nanoid` packages, plus non-breaking fixes for the
+  development-only `brace-expansion` and `js-yaml` advisories.
+- Strengthened the EC2 frontend gate: it now requires stable Next.js 15.5.24 or
+  newer within the approved 15.5 line instead of blocking only one known version.
+- Reviewed the remaining production audit finding chain: Next.js pins PostCSS
+  8.4.31 internally, but this application processes only repository-owned CSS
+  during image build and has no user-controlled CSS or source-map compilation path
+  at runtime. Recheck it when the next compatible 15.5 patch is available; do not
+  force-upgrade to 16.
+- Updated `src/frontend/{package.json,package-lock.json}`, the EC2 security gate,
+  the AWS runbook, README, and this project context.
+- Validation performed: reproducible `npm ci`, frontend lint/typecheck/build,
+  all 196 PostgreSQL-backed backend tests, the final EC2 frontend image build, and
+  a fresh six-service production stack with health/page/static smoke checks.
+- Next recommended step: commit/push the reviewed update, create the approved EC2
+  resources, run the guarded setup, and complete the fresh-data/four-role acceptance
+  checklist before entering production data.
+
+### 2026-08-25 — M8 AWS EC2 deployment approved and implemented
 
 - Confirmed Windows was manual testing only; AWS production must start with fresh
   volumes, a new Admin/new users, seeded settings only, and no Windows/Mac data.

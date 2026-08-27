@@ -34,26 +34,27 @@ files, databases, Docker volumes, media, exports, or backups to AWS.
 
 ### Required frontend security gate
 
-Do not expose the production instance until this gate is complete. Next.js has
-announced a critical security release for **2026-08-26** affecting the maintained
-15.5 line used by this project. The repository is currently on Next.js 15.5.21,
-the latest available maintenance release as of 2026-08-25. After the new 15.5.x
-patch is published, update `src/frontend/package.json` and its lockfile, then run:
+Do not expose the production instance unless this gate passes. The August 2026
+Next.js security release moved forward to **2026-08-25** and requires 15.5.24 for
+projects remaining on the maintained 15.5 line. This repository is locked to
+Next.js 15.5.24. Before transferring the source to EC2, run:
 
 ```bash
 cd src/frontend
-npm install next@15.5
+npm ci
 npm audit --omit=dev
 cd ../..
 docker compose -f deployment/docker-compose.ec2.yml \
   --env-file deployment/env.ec2.example build frontend
 ```
 
-Review any remaining audit finding for actual runtime reachability before
-deployment. Do not use `npm audit fix --force`: that can move the application to
-Next.js 16, which has breaking changes and requires a separate migration. Record
-the final patched version in `PROJECT_CONTEXT.md` before transferring the source
-to EC2. Track the official release at <https://nextjs.org/blog>.
+The current audit can report Next.js's internal PostCSS 8.4.31. In this application,
+PostCSS only compiles repository-owned CSS during the image build; users cannot
+submit CSS or source maps and the production server does not compile them. Keep
+reviewing this transitive finding when a newer 15.5 patch is released. Do not use
+`npm audit fix --force`: it moves the application to Next.js 16, whose breaking
+changes require a separate migration. Track official releases at
+<https://nextjs.org/blog>.
 
 ## 2. Create the EC2 instance in the AWS Console
 
@@ -194,8 +195,8 @@ sudo scripts/setup-ec2.sh
 
 The script:
 
-1. Refuses non-ARM64 machines, missing EC2 secrets, and the pre-patch Next.js
-   15.5.21 lockfile.
+1. Refuses non-ARM64 machines, missing EC2 secrets, and any Next.js lockfile older
+   than patched 15.5.24 or outside the approved 15.5 maintenance line.
 2. Refuses to harden SSH unless the Ubuntu account already has an authorized key.
 3. Installs Docker Engine/Compose and enables Ubuntu unattended security updates.
 4. Creates 2 GB swap for build headroom on the 4 GiB instance.

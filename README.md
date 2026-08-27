@@ -102,6 +102,6 @@ is implemented in the repository:** a fresh Ubuntu 24.04 ARM64 `t4g.medium` in
 TLS certificate, and the original role-aware application stack. Production starts with
 new users and no Windows/Mac testing data. Backup pairs remain local to encrypted EBS
 and are copied manually to the Mac for now; private S3 backup is the planned next
-durability upgrade. Before public go-live, complete the time-sensitive Next.js security
-release gate documented in the runbook. See
+durability upgrade. The frontend is locked to the patched Next.js 15.5.24 release;
+rerun the security/build gate documented in the runbook before public go-live. See
 [`deployment/AWS_EC2_GUIDE.md`](deployment/AWS_EC2_GUIDE.md).
