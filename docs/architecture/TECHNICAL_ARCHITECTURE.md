@@ -187,7 +187,7 @@ Rules enforced here, nowhere else:
 - Every SRS §5 report is one `Report` in a single registry (`apps/reports/builders.py`): a declared filter vocabulary plus a build function returning sections of plain-value rows. The JSON endpoint, the Excel renderer, and the PDF renderer all consume the same result, so exports always match the on-screen dataset (FR-098).
 - The GST report queries purchase lines joined to their refund lines, computing net quantity and net GST per line from the values frozen at entry/refund time (SRS §5.1) — never by summing `gst_value` across ledger rows (bucket-movement rows carry GST for bookkeeping only).
 - **Exports run in Celery**: the export endpoint validates filters, records an `ExportJob` (report key + params + format), enqueues a task, and returns the job; the task replays the report build and renders Excel (`openpyxl`) or PDF (ReportLab, clean light theme per FR-101), and the UI polls/downloads. ReportLab replaced the originally planned WeasyPrint because it is pure Python — no pango/cairo system libraries, so the slim Docker image and the host test venv both work unchanged.
-- Export files are stored **outside** `MEDIA_ROOT` (`EXPORTS_ROOT`, swapped to a private S3 prefix in deployment): nginx serves `/media` publicly, but exports — including admin-only valuation files (FR-116/FR-123) — must only be reachable through the authenticated download endpoint. Users see their own jobs; admins see all.
+- Export files are stored **outside** `MEDIA_ROOT` (`EXPORTS_ROOT`, persisted on encrypted EBS in initial EC2 production and swappable to a private S3 prefix later). Exports — including admin-only valuation files (FR-116/FR-123) — are reachable only through the authenticated download endpoint. The public EC2 nginx configuration also blocks direct `/media/` access, so attachments are downloaded through their authenticated API endpoint. Users see their own export jobs; admins see all.
 
 ## 9. Frontend (Next.js + TypeScript)
 
@@ -221,16 +221,42 @@ Rules enforced here, nowhere else:
 ## 10. Files and Storage
 
 - `attachments.FileAttachment` stores metadata + storage key, generic-linked to purchases/sales/exports.
-- Django storage backend abstraction: `FileSystemStorage` (`MEDIA_ROOT=media/uploads/`) in dev, `django-storages` S3 backend in deployment. Business code never touches paths directly, so the swap is configuration only (FR-105).
+- Django storage backend abstraction: `FileSystemStorage` (`MEDIA_ROOT=media/uploads/`) in development and the initial single-EC2 deployment, backed by persistent encrypted EBS. A future durability phase moves uploads/exports or their backup copies to private S3-compatible storage without changing business records (FR-105).
 - Upload validation: images + PDF only, size cap, content-type sniffing.
 
 ## 11. Local Environment (Docker Compose)
 
 `deployment/docker-compose.yml` runs: `postgres`, `redis`, `backend` (Django dev server), `worker` (Celery), `frontend` (Next.js dev), `nginx` (single origin at `http://localhost:8080`). Hot reload mounts for both apps. A `make seed` target loads demo master data (locations, currencies, GST rates) for development.
 
-## 12. Deployment Sketch (post-local-testing)
+## 12. AWS EC2 deployment (approved 2026-08-25)
 
-Single EC2 instance: the same Compose stack with prod settings — gunicorn behind nginx, TLS, Next.js production build, S3 bucket for media/exports, RDS optional later (Postgres can start on the instance). Backups: `pg_dump` to S3 on a schedule (details deferred per open item). Finalized after local acceptance, per SRS §9.4.
+The Windows application passed manual testing. The approved first AWS production
+target preserves the same Compose architecture on one EC2 instance:
+
+- Region `ap-south-1` (Mumbai), Ubuntu Server 24.04 LTS ARM64,
+  `t4g.medium`, and a 50 GB encrypted gp3 EBS volume.
+- A manually allocated/associated Elastic IPv4 address; no domain or load balancer.
+- Trusted HTTPS directly on the Elastic IP through a Let's Encrypt short-lived IP
+  certificate. Certbot 5.4+ checks renewal four times daily; port 80 remains open
+  for ACME validation and redirects ordinary requests to HTTPS.
+- Public SSH is accepted from changing administrator locations, but the instance
+  permits keys only, disables password/root login, limits attempts, records verbose
+  authentication logs, disables forwarding/tunneling, and runs Fail2ban.
+- `deployment/docker-compose.ec2.yml` runs PostgreSQL, Redis, gunicorn, Celery,
+  the Next.js production build, nginx, and the backup sidecar. Only nginx publishes
+  application ports; PostgreSQL/Redis/backend/frontend remain Docker-internal.
+- Direct `/media/` URLs are rejected; attachment downloads pass through Django's
+  authenticated API so public hosting does not bypass the existing role model.
+- Production starts completely fresh: new volumes, new Admin, new users, seeded
+  settings only, and no Mac/Windows testing data.
+- Uploads, private report exports, PostgreSQL, and local backup pairs remain on
+  encrypted EBS for the initial release. Backups run every 12 hours, are retained
+  for 120 days, and are copied manually to the technician's Mac.
+- Automatic private S3 backup is the next durability upgrade. RDS, a domain/load
+  balancer, and direct S3 application storage remain future scaling options.
+
+The authoritative provisioning, deployment, security, validation, renewal, backup,
+and recovery runbook is `deployment/AWS_EC2_GUIDE.md`.
 
 ## 13. Testing Strategy
 
@@ -271,7 +297,9 @@ Each phase ends with working, tested software; stock correctness is built and ve
 | M5 | Sales + stock adjustments | Negative-stock confirmation flow; adjustments audited |
 | M6 | Dashboard + reports + Excel/PDF exports (Celery) + admin stock valuation | All SRS §5 reports filterable and exportable; past-cutoff dashboard; valuation reconciles with ledger |
 | M7 | Hardening: audit review, mismatch highlighting, responsive pass, seed data, acceptance test run | SRS §12 acceptance criteria pass locally |
-| M8 | AWS deployment (EC2 + S3), cloud backups — **deferred/future** (undertaken only if the client is satisfied after the M9 offline trial) | Production instance live; backup job running |
+| M8 | AWS deployment: approved single ARM64 EC2 instance in Mumbai, Elastic-IP HTTPS, fresh production data, hardened public SSH, encrypted EBS, local backup pairs copied to Mac; private S3 backup follows later | EC2 deployment files/runbook verified; production instance live; role matrix, ledger, TLS renewal, backup and restore checks pass |
 | M9 | Offline/local production use: fresh installation on a separate Windows machine for a three-month, single-Admin trial — no Mac test data and no cloud dependency. Production process managers (gunicorn + `next build`/`next start`), persistent local storage for DB/media/exports, `restart: unless-stopped`, a Windows Desktop shortcut, and verified PostgreSQL + uploaded-media backups every 12 hours with 120-day retention and documented Windows restore | Fresh database contains seeded settings but no business transactions; stack runs with `DEBUG=False`, the Admin completes the daily flow from a Desktop shortcut, uploads persist, and timestamp-matched database/media backup pairs can be restored |
 
-> **Execution order note (2026-07-23):** AWS deployment (M8) is postponed. The client will run the system **offline/locally (M9) first** for a trial period; AWS deployment (M8) proceeds only if that trial is satisfactory. So although M8 carries the lower number, **M9 is the immediate next phase** and M8 follows it (much of M9 — prod settings, gunicorn/Next build, persistent volumes, backup/restore procedure — carries directly into M8, where local disk/`pg_dump` is swapped for S3 and a cloud instance).
+> **Execution update (2026-08-25):** Windows manual testing passed and M8 is now
+> approved. The EC2 implementation deliberately keeps local EBS storage first;
+> automatic private S3 backup follows after the initial deployment stabilizes.

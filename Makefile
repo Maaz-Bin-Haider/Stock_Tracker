@@ -1,11 +1,13 @@
 COMPOSE = docker compose -f deployment/docker-compose.yml
 # Offline/local production stack (Phase M9): prod compose + operator env file.
 PROD_COMPOSE = docker compose -f deployment/docker-compose.prod.yml --env-file deployment/.env.prod
+EC2_COMPOSE = docker compose -f deployment/docker-compose.ec2.yml --env-file deployment/.env.ec2
 VENV = .venv/bin
 
 .PHONY: up down logs seed venv test lint typecheck \
 	prod-up prod-down prod-logs prod-seed prod-superuser local-open \
-	desktop-launcher backup restore restore-media
+	desktop-launcher backup restore restore-media \
+	ec2-up ec2-down ec2-logs ec2-backup ec2-verify ec2-restore
 
 seed:
 	$(COMPOSE) exec backend python manage.py seed
@@ -74,3 +76,26 @@ restore:
 # Usage: make restore-media FILE=data/backups/stock_tracker-media-YYYYmmdd-HHMMSS.tar.gz
 restore-media:
 	scripts/restore-media.sh $(FILE)
+
+# --- AWS EC2 (ARM64 t4g.medium, Elastic IP + HTTPS) ---
+
+ec2-up:
+	scripts/check-ec2-frontend-security.sh
+	$(EC2_COMPOSE) up -d --build
+
+ec2-down:
+	$(EC2_COMPOSE) down
+
+ec2-logs:
+	$(EC2_COMPOSE) logs -f
+
+ec2-backup:
+	scripts/backup-ec2.sh
+
+ec2-verify:
+	scripts/verify-ec2.sh
+
+# Usage: make ec2-restore DB_FILE=data/backups/stock_tracker-....sql.gz \
+#                           MEDIA_FILE=data/backups/stock_tracker-media-....tar.gz
+ec2-restore:
+	scripts/restore-ec2.sh $(DB_FILE) $(MEDIA_FILE)

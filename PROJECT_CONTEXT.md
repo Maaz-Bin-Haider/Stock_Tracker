@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete and manual functional testing passed on the Mac test environment. **M9 will be a fresh three-month installation on a different Windows machine with one Admin operator.** No Mac test database, Docker volumes, media, or backups will be transferred. Windows-native setup, Desktop shortcut, manual backup/restore tooling, and hardened 12-hour automatic database/media backups are included. **M8 server/AWS deployment remains deferred until the Windows trial finishes without a blocking problem and the client chooses to proceed.**
+- Implementation status: phases M0–M7 complete; the production application passed manual testing on Windows. **M8 AWS deployment is approved and its repository implementation is complete, pending the 2026-08-26 Next.js security-release gate and live EC2 execution by the client:** fresh Ubuntu 24.04 ARM64 `t4g.medium` in Mumbai (`ap-south-1`), 50 GB encrypted gp3, manually associated Elastic IP, trusted automatically renewed IP-address HTTPS, hardened public key-only SSH, new Admin/users, and no testing data. The initial deployment keeps database/media/export/backup storage on EBS; backup pairs are copied manually to the Mac and automatic private S3 backup is the next durability upgrade.
 
 ## Current Project Structure
 
@@ -22,8 +22,11 @@ Stock_Tracker/
 │   │   └── stock_tracker_original.xlsx
 │   └── exports/
 ├── deployment/
-│   ├── docker-compose.yml    # postgres, redis, backend, worker, frontend, nginx
-│   └── nginx/default.conf
+│   ├── docker-compose.yml    # development stack
+│   ├── docker-compose.prod.yml # Windows/local production
+│   ├── docker-compose.ec2.yml  # ARM64 AWS production
+│   ├── AWS_EC2_GUIDE.md
+│   └── nginx/                # dev, local-prod, EC2 bootstrap/HTTPS configs
 ├── docs/
 │   ├── architecture/
 │   │   ├── TECHNICAL_ARCHITECTURE.md
@@ -47,6 +50,7 @@ Stock_Tracker/
 
 - `README.md`: repository overview and document map.
 - `LOCAL_SETUP_GUIDE.md`: clean-machine clone/setup, Desktop launcher, 12-hour backups, and disaster recovery for the local trial.
+- `deployment/AWS_EC2_GUIDE.md`: approved AWS Console provisioning, Elastic-IP HTTPS, hardened SSH, fresh initialization, role validation, backup, update, and recovery runbook.
 - `docs/USER_GUIDE.md`: non-technical end-user guide for client staff — every screen, button, and workflow with worked examples ("if you do X, then Y").
 - `docs/requirements/PROJECT_CONTEXT.md`: detailed requirements gathering history.
 - `docs/requirements/SYSTEM_SPEC.md`: implementation-oriented system specification.
@@ -61,9 +65,13 @@ Stock_Tracker/
 - Web-based inventory system.
 - Single company for now, future multi-company design possible.
 - Desktop/web first, responsive for mobile.
-- AWS deployment later after local testing, initially possible on one EC2 instance.
-- Recommended implementation stack: Django backend, Django REST Framework API, PostgreSQL database, Next.js/TypeScript frontend, Tailwind CSS with shadcn/ui or Radix UI, Celery with Redis for background jobs, local Django media storage during development, and S3-compatible object storage during deployment.
-- Development file uploads should use the local Django media folder; deployment should move uploaded/generated files to S3-compatible object storage.
+- AWS production target: one fresh ARM64 `t4g.medium` in Mumbai, encrypted gp3,
+  Elastic IP with trusted HTTPS and no domain.
+- Implementation stack: Django/DRF, PostgreSQL, Next.js/TypeScript, Tailwind CSS,
+  Celery/Redis, and local filesystem storage persisted on encrypted EBS for the
+  initial EC2 deployment; S3 backup/storage remains a future upgrade.
+- Development and initial EC2 uploads/exports use persistent local storage; private
+  S3 backup is the planned next durability upgrade.
 - Stock ledger is the source of truth.
 - Purchases can contain multiple product lines.
 - Purchase collection is separate from purchase entry.
@@ -87,10 +95,15 @@ Stock_Tracker/
 
 ## Open Items
 
-- **AWS deployment (M8) is postponed:** the single-Admin local trial runs for approximately three months first; server deployment proceeds only after a successful trial and client approval.
-- Local backup policy is confirmed: database + uploaded-media backup pairs every 12 hours while online, 120-day retention, plus regular off-machine copies by the technician. The final server/cloud policy remains open for M8.
+- **Live EC2 execution remains:** the client will manually create the documented
+  instance/security group/Elastic IP, transfer the clean source, and run the guarded setup.
+- **Required go-live gate:** install the Next.js 15.5.x critical security release
+  announced for 2026-08-26, then repeat the production audit and ARM64 frontend build.
+  Do not expose the instance publicly on the current 15.5.21 package set.
+- Initial EC2 backup policy is confirmed: database + uploaded-media pairs every
+  12 hours on encrypted EBS, 120-day retention, and regular manual copies to the Mac.
+- Automatic private S3 backup is the next durability improvement after EC2 stabilizes.
 - Final report columns can be refined after business review.
-- Final AWS architecture will be decided after the offline trial, with S3-compatible storage expected for uploaded invoices and generated reports.
 
 ## Documentation Maintenance Rule
 
@@ -105,7 +118,40 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-08-11 (latest) — Windows target and fresh-data requirement
+### 2026-08-25 (latest) — M8 AWS EC2 deployment approved and implemented
+
+- Confirmed Windows was manual testing only; AWS production must start with fresh
+  volumes, a new Admin/new users, seeded settings only, and no Windows/Mac data.
+- Finalized the first AWS target: Mumbai `ap-south-1`, Ubuntu 24.04 ARM64,
+  `t4g.medium`, 50 GB encrypted gp3, manually associated Elastic IP, and no domain.
+- Added trusted HTTPS directly on the Elastic IP using Let's Encrypt short-lived
+  IP certificates and Certbot 5.4+, checked four times daily by systemd.
+- Added `deployment/docker-compose.ec2.yml` with the original seven-service stack,
+  Django secure production settings, internal-only database/queue/app ports,
+  persistent EBS-backed volumes, container log rotation, and 12-hour local backups.
+- Added EC2 bootstrap/HTTPS nginx configurations and guarded scripts for secret
+  generation, ARM64 host setup, key-only SSH hardening, Fail2ban, fresh-data
+  verification, unattended Ubuntu security updates, Admin creation,
+  backup/restore, and infrastructure verification.
+- Blocked direct public `/media/` access on EC2; attachment downloads remain behind
+  Django's authenticated API so filename guessing cannot bypass application rights.
+- Added `deployment/AWS_EC2_GUIDE.md` with exact AWS Console, Mac-to-EC2 transfer,
+  role acceptance, certificate renewal, operation, update, and recovery steps.
+- Updated Next.js from 15.5.20 to 15.5.21, the latest Maintenance LTS release
+  available on 2026-08-25. Added a mandatory pre-go-live gate for the critical
+  15.5.x security release announced for 2026-08-26; Next.js 16 is not adopted
+  automatically because it requires a breaking-change migration. Both the EC2
+  setup script and `make ec2-up` refuse the current pre-patch lockfile.
+- Initial backups remain on EBS and are copied manually to the Mac. Automatic
+  private S3 backup is explicitly the next durability upgrade.
+- Files updated: deployment EC2 files/nginx/runbook, EC2 scripts, Makefile,
+  README/deployment docs, requirements, architecture, and project context.
+- Next recommended step: apply and validate the 2026-08-26 Next.js 15.5.x security
+  release, then commit/push the reviewed files, manually create the approved EC2
+  resources, associate the Elastic IP, run the guarded setup, and complete the
+  fresh-system plus four-role acceptance checklist.
+
+### 2026-08-11 — Windows target and fresh-data requirement
 
 - Clarified that the real three-month trial will run on a different Windows machine, not the Mac used for manual testing.
 - The Windows installation must be a fresh Git clone with new `.env.prod` secrets and new Docker volumes. Mac test database, media, backups, and Docker state must not be copied; only required master settings are seeded.
@@ -306,24 +352,28 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**Current plan (2026-08-11): install M9 fresh on a separate Windows machine for one Admin to use for approximately three months.** The Mac remains a test environment and none of its runtime data transfers. Server/AWS deployment (M8) proceeds only after a stable Windows trial and explicit client approval.
+**Current plan (2026-08-25): execute the approved M8 deployment manually by
+following `deployment/AWS_EC2_GUIDE.md`.** Windows manual testing passed, but none
+of its users or data transfer. AWS production starts fresh.
 
-**Phase M9 — offline/local production use: code-complete; manual functional testing passed on 2026-08-11.** M0–M7 remain done and verified (196 backend tests, ruff/eslint/tsc clean, SRS §12 acceptance walkthrough). The offline stack is built alongside the untouched dev stack:
+**Phase M8 repository implementation: complete; live AWS execution pending.**
 
-- [x] Local production settings — `config/settings/local_prod.py`: `DEBUG=False`, secret required from env, LAN `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` from env, secure cookies/HSTS off by default for plain-HTTP LAN (opt-in `DJANGO_SECURE_COOKIES=1`).
-- [x] Production process managers — `deployment/docker-compose.prod.yml` runs gunicorn (after `migrate`+`collectstatic`); `src/frontend/Dockerfile.prod` bakes `next build` and serves via `next start`. `gunicorn>=23` added to deps.
-- [x] Persistent local storage — named volumes `postgres_data`/`media_files`/`exports_data`/`static_files`; nginx serves static + media from the shared volumes (`deployment/nginx/prod.conf`).
-- [x] Survivability — `restart: unless-stopped` on every service.
-- [x] Local-only access — nginx serves `http://localhost:8080` on the Windows host; the DB stays internal and unpublished.
-- [x] Local backups — hardened backup sidecar + guarded manual tools create database and uploaded-media pairs every 12 hours with 120-day retention and documented restore.
-- [x] Operator ergonomics — Windows `.cmd` launcher + `.lnk` installer, one-time PowerShell setup, Windows-native manual backup/restore, and the root setup/recovery guide. The macOS launcher remains only for the test machine.
-- [x] **Smoke run verified on a live Docker stack** (localhost, all 7 services healthy): health/homepage/login/admin-static all `200`, migrate (36 tables) + seed + `create_admin` (role ADMIN), full CSRF→login flow, backup sidecar + `scripts/backup.sh` dump, and a passing restore drill.
-- [x] **Manual functional testing passed** — confirmed by the client on 2026-08-11.
-- [x] **Backup sidecar hardened** — dump failure propagation and compressed archive validation are explicit.
-- [ ] **Remaining — fresh Windows rollout:** commit/push the setup changes, clone them on the new Windows machine, initialize new volumes, verify business pages contain no test data, and begin the trial. Copy backup pairs off the Windows machine at least weekly.
+- [x] Dedicated ARM64 EC2 Compose stack with all seven services and log rotation.
+- [x] Django secure production settings and single-origin nginx proxy.
+- [x] HTTP certificate bootstrap followed by trusted Elastic-IP HTTPS.
+- [x] Four-times-daily automated renewal for six-day IP certificates.
+- [x] Public SSH hardening: key-only, no root/password, Fail2ban, verbose logs.
+- [x] Guarded fresh-data check, settings-only seed, and Admin bootstrap.
+- [x] EBS-backed persistence plus matched 12-hour database/media backup pairs.
+- [x] Manual backup/restore and infrastructure verification scripts.
+- [x] Detailed AWS Console and Mac deployment/recovery runbook.
+- [ ] Client creates the `ap-south-1` `t4g.medium`, 50 GB encrypted gp3 volume,
+  security group, and Elastic IP, then runs the documented setup.
+- [ ] Complete live HTTPS, reboot, restore, ledger, reports, attachments, and
+  four-role permission acceptance tests.
+- [ ] Copy backup pairs to the Mac regularly.
 
-Local backup policy is confirmed at **12-hour intervals / 120-day retention**. The final server/cloud backup policy remains a future M8 decision.
-
-**Deferred — Phase M8 — AWS deployment (future, only if the offline trial succeeds).** Most M9 work carries over; the deltas are: swap local storage for an S3-compatible bucket via django-storages (public-ish media for uploads, **private** prefix + authenticated download for exports — `EXPORTS_ROOT` swap is configuration only), run the Compose stack on a single EC2 instance with a domain + TLS certificates, and move backups from local disk to `pg_dump` → S3 on a schedule.
+**Next durability phase:** automate private encrypted/versioned S3 backup with a
+retention lifecycle after the initial EC2 deployment stabilizes.
 
 Deferred small items (unchanged): `app_settings` model/endpoint (SYSTEM_SPEC §24 — no concrete requirement yet), OpenAPI-generated typed frontend client + TanStack Query/shadcn DataTable adoption (TECHNICAL_ARCHITECTURE §6/§9), per-breakpoint DataTable column priorities + Playwright viewport/theme screenshot flows (§9.2).

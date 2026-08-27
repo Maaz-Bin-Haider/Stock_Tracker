@@ -1,9 +1,21 @@
-# Offline / Local Production Deployment (Phase M9)
+# Production deployment options
+
+Two production-mode targets are maintained without changing the application or
+its role permissions:
+
+- **AWS EC2:** the approved fresh production deployment on an ARM64
+  `t4g.medium` in Mumbai, reached through a manually associated Elastic IP with
+  trusted HTTPS and no domain. Follow
+  [`AWS_EC2_GUIDE.md`](AWS_EC2_GUIDE.md). It uses
+  `docker-compose.ec2.yml` and a private `.env.ec2`.
+- **Offline/local Windows:** the completed trial deployment described below. It
+  uses `docker-compose.prod.yml` and a private `.env.prod`.
+
+## Offline / local production (Phase M9)
 
 Run the SwissTech Stock Tracker in **production mode on a single machine or office
-LAN**, with no cloud dependency. The immediate plan is a three-month trial on a
-separate Windows machine with a fresh database and one Admin operator before deciding
-on AWS (Phase M8). It runs gunicorn + a Next.js production build
+LAN**, with no cloud dependency. This is the retained Windows manual-test/local
+deployment; AWS production now has its separate approved runbook. It runs gunicorn + a Next.js production build
 behind nginx, keeps all data in persistent Docker volumes, survives reboots, and
 takes automatic local database backups.
 
@@ -89,9 +101,9 @@ front of nginx, set `DJANGO_SECURE_COOKIES=1` in `.env.prod` and switch the
 browser origin(s) in `DJANGO_CSRF_TRUSTED_ORIGINS` to `https://…`. Do **not** set
 that flag while still on plain HTTP, or cookies stop flowing and login breaks.
 
-## Moving to AWS later (Phase M8)
+## AWS production and future S3 backup
 
-Most of this carries over. The deltas are: swap local storage for S3-compatible
-object storage (`django-storages`), run on an EC2 instance with a domain + TLS
-certificates (then use `config.settings.prod` with `DJANGO_SECURE_COOKIES`
-behaviour built in), and move backups from local disk to `pg_dump` → S3.
+AWS M8 is now approved and implemented separately in
+[`AWS_EC2_GUIDE.md`](AWS_EC2_GUIDE.md). The first release uses encrypted EBS and
+manual off-instance copies to the Mac. Automatic private S3 backup is the next
+durability improvement after EC2 stabilizes.

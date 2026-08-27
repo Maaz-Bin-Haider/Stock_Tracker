@@ -1,0 +1,192 @@
+name: stock-tracker-ec2
+
+# Single-instance AWS EC2 deployment. This keeps the application in its tested
+# Docker Compose form while switching Django to the HTTPS production settings.
+# Target: Ubuntu 24.04 ARM64 on t4g.medium, Elastic IP, ports 80/443/22.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stock_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-stock_tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployment/.env.ec2}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stock_tracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ../src/backend
+    restart: unless-stopped
+    logging: *default-logging
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    environment: &backend-env
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in deployment/.env.ec2}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set DJANGO_ALLOWED_HOSTS in deployment/.env.ec2}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:?set DJANGO_CSRF_TRUSTED_ORIGINS in deployment/.env.ec2}
+      POSTGRES_DB: ${POSTGRES_DB:-stock_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-stock_tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployment/.env.ec2}
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - media_files:/app/media
+      - exports_data:/app/exports
+      - static_files:/app/staticfiles
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  worker:
+    build: ../src/backend
+    restart: unless-stopped
+    logging: *default-logging
+    command: celery -A config worker --loglevel=info
+    environment: *backend-env
+    volumes:
+      - media_files:/app/media
+      - exports_data:/app/exports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../src/frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # setup-ec2.sh initially overrides this with ec2-bootstrap.conf, obtains
+      # the IP certificate, then persists ec2-https.conf in .env.ec2.
+      - ./nginx/${NGINX_CONFIG_FILE:-ec2-bootstrap.conf}:/etc/nginx/conf.d/default.conf:ro
+      - static_files:/srv/static:ro
+      - /var/www/stock-tracker-certbot:/var/www/certbot:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # Local first-line recovery: a matched PostgreSQL dump + uploaded-media
+  # archive on startup and every 12 hours. These files remain on the EC2 EBS
+  # volume until the planned future S3 backup upgrade is implemented.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    # Write host-mounted backups as the Ubuntu administrator, not root.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-stock_tracker}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployment/.env.ec2}
+      PGDATABASE: ${POSTGRES_DB:-stock_tracker}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-43200}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-120}
+    volumes:
+      - ../data/backups:/backups
+      - media_files:/media:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        umask 077
+        echo "Backup sidecar: every $${BACKUP_INTERVAL_SECONDS:-43200}s, keep $${BACKUP_RETENTION_DAYS:-120} days"
+        while true; do
+          ts=$$(date +%Y%m%d-%H%M%S)
+          out="/backups/stock_tracker-$$ts.sql.gz"
+          media_out="/backups/stock_tracker-media-$$ts.tar.gz"
+          tmp="/tmp/stock_tracker-$$ts.sql"
+          db_ok=0
+          echo "[backup] $$ts -> $$out"
+          if pg_dump --clean --if-exists --file="$$tmp" &&
+             gzip -c "$$tmp" > "$$out" &&
+             gzip -t "$$out"; then
+            echo "[backup] database ok: $$out ($$(du -h "$$out" | cut -f1))"
+            db_ok=1
+          else
+            echo "[backup] database FAILED: $$out"
+            rm -f "$$out"
+          fi
+          rm -f "$$tmp"
+          if [ "$$db_ok" -eq 1 ]; then
+            if tar -czf "$$media_out" -C /media . && tar -tzf "$$media_out" >/dev/null; then
+              echo "[backup] media ok: $$media_out ($$(du -h "$$media_out" | cut -f1))"
+            else
+              echo "[backup] media FAILED: removing incomplete pair"
+              rm -f "$$media_out" "$$out"
+            fi
+          else
+            echo "[backup] media skipped because the database dump failed"
+          fi
+          find /backups -name 'stock_tracker-*.sql.gz' -type f -mtime +$${BACKUP_RETENTION_DAYS:-120} -delete
+          find /backups -name 'stock_tracker-media-*.tar.gz' -type f -mtime +$${BACKUP_RETENTION_DAYS:-120} -delete
+          sleep $${BACKUP_INTERVAL_SECONDS:-43200}
+        done
+
+volumes:
+  postgres_data:
+  media_files:
+  exports_data:
+  static_files:

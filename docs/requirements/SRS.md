@@ -112,9 +112,9 @@ Required support:
 
 Deployment plan:
 
-- local testing first
-- AWS deployment later
-- initial AWS deployment can run on a single EC2 instance
+- Windows manual testing passed
+- approved initial AWS production runs fresh on one ARM64 EC2 instance in Mumbai
+- users connect securely through the associated Elastic IP; no domain is required
 
 ### 2.5 Design and Implementation Constraints
 
@@ -134,9 +134,9 @@ Deployment plan:
 - Barcode/QR scanning is not required.
 - Low-stock and reorder alerts are not required.
 - Profit calculation is not required.
-- For the three-month local trial, verified database and uploaded-file backups
-  shall run every 12 hours while the Docker stack is online and be retained for
-  120 days. The long-term server/cloud backup policy remains deferred.
+- In initial EC2 production, verified database and uploaded-file backups shall run
+  every 12 hours, remain on encrypted EBS for 120 days, and be copied manually to
+  the technician's Mac. Private S3 backup follows after deployment stabilizes.
 
 ## 3. System Modules
 
@@ -759,7 +759,9 @@ The system shall support upload of images and PDF files for purchases and sales.
 
 #### FR-105 File Storage
 
-Files shall be stored inside the system. During development, files shall use the local Django media folder. During deployment, uploaded files and generated reports shall use S3-compatible object storage.
+Files shall be stored inside the system. Development and the initial single-EC2
+deployment shall use the local Django media/export directories persisted on
+encrypted EBS. Private S3-compatible backup/storage is a future durability upgrade.
 
 The database shall store file metadata and local path or object-storage key references, not binary file contents.
 
@@ -1034,6 +1036,10 @@ archive immediately when the backup service starts and every 12 hours afterward
 while the system is online. Local backups shall be retained for 120 days in
 `data/backups/`, and documented database/media restore procedures shall be provided.
 
+For the initial AWS EC2 production deployment, the same matched backup pairs shall
+be created every 12 hours on encrypted EBS and copied manually to the technician's
+Mac. Automatic private S3 backup is the next planned durability improvement.
+
 ## 8. Business Rules
 
 ### 8.1 Stock Source of Truth
@@ -1078,7 +1084,9 @@ The system shall provide a modern web interface with main navigation, forms, sea
 
 The system shall allow upload and download of invoice images and PDF files.
 
-Development file handling shall use Django `MEDIA_ROOT`, such as `media/uploads/`. Deployment file handling shall move to S3-compatible object storage without changing the user-facing upload/download workflow.
+Development and the initial single-EC2 deployment shall use Django `MEDIA_ROOT`,
+with EC2 files persisted on encrypted EBS. A future S3-compatible storage/backup
+upgrade shall not change the user-facing upload/download workflow.
 
 ### 9.3 Export Interface
 
@@ -1086,11 +1094,16 @@ The system shall export reports to Excel and PDF.
 
 ### 9.4 Hosting Interface
 
-The system shall be deployable on AWS after local testing.
+After successful Windows manual testing, the initial AWS production system shall
+run fresh on one Ubuntu 24.04 ARM64 `t4g.medium` EC2 instance in `ap-south-1`, with
+a 50 GB encrypted gp3 volume and a manually associated Elastic IPv4 address.
 
-Initial deployment may use one EC2 instance.
+The system shall use trusted automatically renewed HTTPS directly on the Elastic
+IP without requiring a domain. Only nginx ports 80/443 and hardened key-only SSH
+shall be public; database, queue, backend, and frontend service ports remain private.
 
-Uploaded invoices and generated reports should use local Django media storage during development and S3-compatible object storage during deployment.
+Uploaded invoices and generated reports shall initially persist on encrypted EBS.
+Private S3 backup/storage is a planned follow-up after deployment stabilizes.
 
 ### 9.5 Recommended Technical Stack
 
@@ -1104,7 +1117,8 @@ The recommended stack for implementation is:
 - Background jobs: Celery.
 - Queue/cache: Redis.
 - Development file storage: local Django media folder.
-- Deployment file storage: S3-compatible object storage.
+- Initial EC2 file storage: encrypted EBS-backed Docker volumes.
+- Future durability storage: private S3-compatible backup/object storage.
 - Local environment: Docker Compose.
 
 ## 10. Out of Scope
@@ -1121,15 +1135,14 @@ The following are out of scope for the first version:
 - reorder alerts
 - Excel bulk import
 - multi-company active operation
-- final server/cloud backup architecture
+- direct S3 application storage, RDS, load balancer, and domain-based deployment
 
 ## 11. Open Items
 
-The following items need final confirmation before development:
+The following items remain open:
 
-- Final server/cloud backup schedule and off-machine storage policy after the local trial.
+- Timing and retention policy for the planned private S3 backup upgrade.
 - Final report columns after business review.
-- Final AWS deployment architecture after local testing.
 
 ## 12. Acceptance Criteria
 

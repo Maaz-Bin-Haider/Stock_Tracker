@@ -668,8 +668,10 @@ Deployment and infrastructure:
 - The app will first be tested locally.
 - After local testing and confirmation, deployment will be handled later.
 - Target deployment is AWS.
-- Initial AWS deployment can run all required services on a single EC2 instance.
-- The deployment phase should include web app, database, S3-compatible file storage, users, and backup setup as needed.
+- The approved initial AWS deployment runs all services fresh on one ARM64
+  `t4g.medium` EC2 instance in Mumbai with an Elastic IP and trusted HTTPS.
+- Initial file/database/export storage remains on encrypted EBS. Matched backups
+  are copied manually to the Mac; private S3 backup is the next durability phase.
 
 Recommended implementation stack:
 
@@ -681,7 +683,8 @@ Recommended implementation stack:
 - Background jobs: Celery.
 - Queue/cache: Redis.
 - Development file storage: local Django media folder.
-- Deployment file storage: S3-compatible object storage.
+- Initial EC2 file storage: encrypted EBS-backed Docker volumes.
+- Future durability storage: private S3-compatible backup/object storage.
 - Local environment: Docker Compose for Django, PostgreSQL, Redis, Celery, and the frontend.
 
 Reports:
@@ -748,3 +751,28 @@ Decisions confirmed with the client:
   that starts Docker/the application when necessary and opens the login page.
 - A root-level setup and recovery guide must explain cloning, configuration,
   initialization, Desktop launcher installation, backup verification, and restore.
+
+### Batch 12 Requirements - AWS EC2 Production Approval (2026-08-25)
+
+- Windows manual testing passed; its users and data are not production data and
+  must not be transferred to AWS.
+- AWS production starts completely fresh with new Docker volumes, a new Admin,
+  new role-assigned users, and required seeded settings only.
+- Region: Mumbai (`ap-south-1`). Instance: Ubuntu Server 24.04 LTS ARM64 on
+  `t4g.medium`, with a 50 GB encrypted gp3 EBS volume.
+- The client manually creates the instance/security group, allocates the Elastic
+  IPv4 address, and associates it with the instance by following the runbook.
+- No domain is required. The application uses a trusted Let's Encrypt short-lived
+  IP-address certificate with fully automated renewal.
+- Public SSH must work from changing administrator locations. Port 22 is public,
+  but only key authentication is allowed; root/password login is disabled,
+  attempts are limited, Fail2ban is enabled, and authentication is logged verbosely.
+- Only nginx ports 80/443 are public for the application. PostgreSQL, Redis,
+  Django, and Next.js remain inside the Docker network.
+- Initial PostgreSQL, uploaded files, report exports, and backup pairs remain on
+  encrypted EBS. Backups run every 12 hours with 120-day retention and are copied
+  manually to the technician's Mac.
+- Automatic private S3 backup is explicitly planned for the next durability phase,
+  after the simple single-instance production deployment stabilizes.
+- Existing Admin/Purchase/Sale/Viewer rights must remain unchanged and be verified
+  after deployment through both the UI and direct API authorization checks.

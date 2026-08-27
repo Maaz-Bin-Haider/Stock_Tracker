@@ -31,6 +31,7 @@ This repository contains the planning documents, original workbook reference, an
 - [System Diagrams](docs/architecture/SYSTEM_DIAGRAMS.md)
 - [Technical Architecture](docs/architecture/TECHNICAL_ARCHITECTURE.md)
 - [Local Trial Setup and Recovery Guide](LOCAL_SETUP_GUIDE.md)
+- [AWS EC2 Deployment Guide](deployment/AWS_EC2_GUIDE.md)
 
 Diagram PDF exports are stored in:
 
@@ -74,7 +75,7 @@ CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, 
 
 To run the app in **production mode on a single machine or office LAN** (gunicorn + a
 Next.js production build behind nginx, persistent volumes, automatic local backups) —
-the trial deployment used before any AWS move — see the runbook in
+the retained Windows/local deployment used for manual testing — see the runbook in
 [`deployment/README.md`](deployment/README.md). In short:
 
 ```powershell
@@ -95,8 +96,12 @@ refunds/cancellations; shipments + receiving (including the Dubai→Karachi tran
 sales + stock adjustments; dashboard, reports, Excel/PDF exports, and admin stock
 valuation; and hardening (attachments, theming/dark mode, responsive shell, demo seed).
 The **M9 offline/local production stack** is implemented, and manual functional testing
-passed on 2026-08-11. The immediate plan is a three-month, single-Admin trial on a
-different Windows machine using a fresh database and no testing data. The Windows
-Desktop shortcut and 12-hour automatic backups are included. **M8 (AWS deployment) is
-deferred** until the trial is completed and the client chooses to proceed (see
-`docs/architecture/TECHNICAL_ARCHITECTURE.md` §15).
+passed on Windows. **M8 (AWS deployment) is now approved and its EC2 deployment path
+is implemented in the repository:** a fresh Ubuntu 24.04 ARM64 `t4g.medium` in
+`ap-south-1`, manually associated Elastic IP, trusted automatically renewed IP-address
+TLS certificate, and the original role-aware application stack. Production starts with
+new users and no Windows/Mac testing data. Backup pairs remain local to encrypted EBS
+and are copied manually to the Mac for now; private S3 backup is the planned next
+durability upgrade. Before public go-live, complete the time-sensitive Next.js security
+release gate documented in the runbook. See
+[`deployment/AWS_EC2_GUIDE.md`](deployment/AWS_EC2_GUIDE.md).

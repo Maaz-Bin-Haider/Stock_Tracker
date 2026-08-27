@@ -447,7 +447,9 @@ Supported examples:
 
 Files are stored inside the system and linked to the related record.
 
-During development, the system stores uploaded files in the local Django media folder. During deployment, these files will move to S3-compatible cloud storage, while users continue uploading and downloading files through the same screens.
+During development and the initial single-EC2 production deployment, the system
+stores uploaded files in persistent local media storage (encrypted EBS on EC2).
+A future private S3 backup/storage upgrade will not change the upload/download screens.
 
 Where relevant, files should be downloadable from reports.
 
@@ -567,19 +569,17 @@ The admin can view a summary (total worth, worth by location, worth by bucket, w
 
 Both views can be filtered and exported to Excel or PDF, and the export contains exactly the filtered data.
 
-## 26. Future Deployment Flow
+## 26. AWS Production Flow
 
-The system will first be tested locally.
+Windows manual testing passed. Production starts as a completely fresh system on
+one ARM64 EC2 instance in Mumbai; Windows test users and data are not transferred.
 
-After local testing and business confirmation, it can be deployed to AWS.
+Users open the system through trusted HTTPS on its permanent Elastic IP. The Admin
+creates the production users and assigns Admin, Purchase, Sale, or Viewer rights.
+The same rights are enforced by the server regardless of which device or country a
+user connects from.
 
-The first AWS deployment can run on a single EC2 instance.
-
-During development, invoice files and generated reports can be stored in the local Django media folder. During deployment, uploaded files and generated reports should be moved to S3-compatible storage.
-
-For the three-month local trial, the system creates a database backup and uploaded-file
-backup immediately when its backup service starts and every 12 hours while Docker is
-online. The local Admin opens the fresh Windows installation from the **SwissTech
-Stock Tracker** Desktop shortcut. Backups are kept in `data/backups/` for 120 days; the technician copies that
-folder to separate trusted storage regularly. Server/cloud backup design is finalized
-only if the trial proceeds to deployment.
+Invoice files, generated reports, PostgreSQL, and Docker volumes initially remain
+on encrypted EBS. The system creates a database and uploaded-file backup pair every
+12 hours and keeps it for 120 days; the technician copies pairs to the Mac regularly.
+Automatic private S3 backup is the next durability improvement.

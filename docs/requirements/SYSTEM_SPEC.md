@@ -855,7 +855,8 @@ Files should be:
 
 - stored inside the system
 - stored in the local Django media folder during development
-- moved to S3-compatible object storage during deployment
+- stored on encrypted EBS during the initial single-EC2 deployment
+- eligible for private S3-compatible backup/storage in the next durability phase
 - linked to the source record
 - downloadable from reports where relevant
 - included in audit trail for upload activity
@@ -891,7 +892,8 @@ Development file storage should use Django `MEDIA_ROOT`, for example `media/uplo
 - Background jobs: Celery for report exports, scheduled tasks, and heavier recalculation jobs.
 - Queue/cache: Redis.
 - Development file storage: local Django media folder.
-- Deployment file storage: S3-compatible object storage.
+- Initial EC2 file storage: encrypted EBS-backed Docker volumes.
+- Future durability storage: private S3-compatible backup/object storage.
 - Local environment: Docker Compose.
 
 ### Deployment
@@ -901,10 +903,16 @@ Development file storage should use Django `MEDIA_ROOT`, for example `media/uplo
   not be transferred.
 - The local operator shall be able to start and open the system from a Windows
   Desktop shortcut without using PowerShell.
-- AWS deployment comes after the three-month local trial if no blocking problem occurs.
-- Initial AWS deployment can run on a single EC2 instance.
+- Windows manual testing passed; AWS production deployment is approved.
+- Initial AWS production runs fresh in `ap-south-1` on one Ubuntu 24.04 ARM64
+  `t4g.medium`, with a 50 GB encrypted gp3 volume and no testing data.
+- A manually associated Elastic IP is the public address. Trusted short-lived
+  IP-address TLS certificates renew automatically; no domain is required.
+- Public SSH permits changing administrator locations but is key-only with root
+  and password login disabled, Fail2ban enabled, and verbose authentication logs.
 - Development file storage should use the local Django media folder.
-- Deployment file storage should use S3-compatible object storage for uploaded invoices and generated reports.
+- Initial EC2 uploads and generated reports use persistent encrypted EBS-backed
+  Docker volumes. Private S3 backup is the next durability upgrade.
 - Deployment should include app server, database, file storage, users, and backup setup as needed.
 
 ### Backup
@@ -914,8 +922,10 @@ Development file storage should use Django `MEDIA_ROOT`, for example `media/uplo
   the Docker stack is online.
 - Store both timestamp-matched files in `data/backups/` and retain them for 120 days.
 - Provide guarded restore commands for the database and uploaded media.
-- Copy the backup folder to separate trusted storage regularly; the final
-  server/cloud backup policy is decided during M8.
+- Copy the local-trial backup folder to separate trusted storage regularly.
+- On the initial EC2 deployment, create the same pairs every 12 hours on encrypted
+  EBS and copy them manually to the technician's Mac. Automatic private S3 backup
+  is planned after the EC2 release stabilizes.
 
 ## 24. Suggested Database Tables
 

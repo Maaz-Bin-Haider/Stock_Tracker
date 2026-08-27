@@ -32,6 +32,9 @@ data/exports/*
 data/backups/*
 !data/backups/.gitkeep
 
+# EC2 production secrets are generated on the server and never committed.
+deployment/.env.ec2
+
 
 # Python tooling caches
 .pytest_cache/
