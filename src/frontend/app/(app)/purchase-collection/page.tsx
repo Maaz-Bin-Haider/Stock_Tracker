@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import Pagination from "@/components/pagination";
-import { api, errorMessage } from "@/lib/api";
+import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
 
@@ -65,8 +65,8 @@ export default function PurchaseCollectionPage() {
   }, [load]);
 
   useEffect(() => {
-    api<{ results: Option[] }>("/api/v1/locations/?can_purchase=true")
-      .then((data) => setLocations(data.results))
+    apiAll<Option>("/api/v1/locations/?can_purchase=true")
+      .then(setLocations)
       .catch(() => undefined);
   }, []);
 

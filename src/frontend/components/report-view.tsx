@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, errorMessage } from "@/lib/api";
+import { api, apiAll, errorMessage } from "@/lib/api";
 
 export interface ReportMeta {
   key: string;
@@ -144,10 +144,8 @@ export default function ReportView({ report }: { report: ReportMeta }) {
     report.filters
       .filter((name) => SELECT_FILTERS[name] && !options[name])
       .forEach((name) => {
-        api<{ results: Option[] }>(SELECT_FILTERS[name])
-          .then((body) =>
-            setOptions((current) => ({ ...current, [name]: body.results })),
-          )
+        apiAll<Option>(SELECT_FILTERS[name])
+          .then((rows) => setOptions((current) => ({ ...current, [name]: rows })))
           .catch(() => undefined);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -69,7 +69,15 @@ make lint      # ruff (backend) + eslint (frontend)
 make typecheck # tsc --noEmit (frontend)
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint, tests (against Postgres), typecheck, and the frontend build on every push/PR to main.
+Frontend regression tests can also be run directly:
+
+```bash
+cd src/frontend
+npm test
+```
+
+CI (`.github/workflows/ci.yml`) runs backend lint/tests (against Postgres), frontend
+lint/tests/typecheck, and the frontend production build on every push/PR to main.
 
 ### Offline / local production (Phase M9)
 

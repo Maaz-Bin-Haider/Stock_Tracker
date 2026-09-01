@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import Pagination from "@/components/pagination";
-import { api, errorMessage } from "@/lib/api";
+import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 interface LedgerEntry {
@@ -101,8 +101,8 @@ export default function StockLedgerPage() {
   }, [load]);
 
   useEffect(() => {
-    api<{ results: Option[] }>("/api/v1/locations/")
-      .then((data) => setLocations(data.results))
+    apiAll<Option>("/api/v1/locations/")
+      .then(setLocations)
       .catch(() => undefined);
   }, []);
 

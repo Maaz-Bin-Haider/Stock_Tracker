@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import Pagination from "@/components/pagination";
-import { api, errorMessage } from "@/lib/api";
+import { api, apiAll, errorMessage } from "@/lib/api";
 
 export type FieldType =
   | "text"
@@ -94,11 +94,11 @@ export default function ResourceCrud({
   useEffect(() => {
     fields.forEach((field) => {
       if (!field.optionsEndpoint) return;
-      api<ListResponse>(field.optionsEndpoint)
-        .then((data) =>
+      apiAll<Row>(field.optionsEndpoint)
+        .then((rows) =>
           setFkOptions((prev) => ({
             ...prev,
-            [field.name]: data.results.map((row) => ({
+            [field.name]: rows.map((row) => ({
               value: String(row.id),
               label: String(row[field.optionLabelKey ?? "name"] ?? row.id),
             })),

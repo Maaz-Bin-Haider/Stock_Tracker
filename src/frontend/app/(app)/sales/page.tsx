@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 
 import AttachmentsPanel from "@/components/attachments-panel";
 import Pagination from "@/components/pagination";
-import { api, ApiError, errorMessage } from "@/lib/api";
+import { api, apiAll, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
 
@@ -121,14 +121,16 @@ export default function SalesPage() {
   }, [load]);
 
   useEffect(() => {
-    const fetchAll = async (path: string) =>
-      (await api<{ results: Option[] }>(path)).results;
-    fetchAll("/api/v1/products/?is_active=true").then(setProducts).catch(() => undefined);
+    apiAll<Option>("/api/v1/products/?is_active=true")
+      .then(setProducts)
+      .catch(() => undefined);
     // Only Dubai and Karachi may sell (FR-068); the server enforces this too.
-    fetchAll("/api/v1/locations/?is_sales_location=true&is_active=true")
+    apiAll<Option>("/api/v1/locations/?is_sales_location=true&is_active=true")
       .then(setLocations)
       .catch(() => undefined);
-    fetchAll("/api/v1/customers/?is_active=true").then(setCustomers).catch(() => undefined);
+    apiAll<Option>("/api/v1/customers/?is_active=true")
+      .then(setCustomers)
+      .catch(() => undefined);
   }, []);
 
   function openCreate() {

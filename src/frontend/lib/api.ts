@@ -1,3 +1,5 @@
+import { collectPaginated, type PaginatedResponse } from "./pagination";
+
 export class ApiError extends Error {
   status: number;
   body: unknown;
@@ -42,6 +44,11 @@ export async function api<T = unknown>(
   const body = isJson ? await response.json() : await response.text();
   if (!response.ok) throw new ApiError(response.status, body);
   return body as T;
+}
+
+/** Load every page from a DRF-paginated list endpoint (dropdown choices, etc.). */
+export async function apiAll<T>(path: string): Promise<T[]> {
+  return collectPaginated(path, (pagePath) => api<PaginatedResponse<T>>(pagePath));
 }
 
 /** POST multipart form data (file uploads); same session/CSRF handling as api(). */

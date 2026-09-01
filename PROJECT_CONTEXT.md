@@ -118,7 +118,41 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-08-27 (latest) — Next.js 15.5 security release applied
+### 2026-09-01 (latest) — production product dropdown pagination fix
+
+- Fixed the production purchase-invoice product dropdown showing only the first
+  alphabetic group when more than 200 products existed. DRF paginates list APIs
+  at 50 rows, while the frontend's local `fetchAll` helpers returned only the
+  first page's `results` and ignored its `next` link; because products are ordered
+  by name, the visible first page ended around D.
+- Added shared frontend `apiAll()`/`collectPaginated()` helpers that follow all
+  DRF pages, normalize absolute next links to same-origin paths, and guard against
+  repeated-link loops.
+- Applied the fix to option loading in Purchases, Sales, Shipments, Stock
+  Adjustments, Purchase Collection, Stock Ledger, report filters, and generic
+  master-data forms. Regular list pages remain paginated.
+- Added a Node regression test simulating 205 products over five API pages, a
+  pagination-loop safety test, and a PostgreSQL-backed API test that verifies
+  products 201–205 on the real fifth page. Added `npm test` to the frontend CI
+  job and documented the incident in
+  `docs/production-issues/2026-09-01-product-dropdown-pagination.md`.
+- No database migration or data repair is required; production needs a frontend
+  image rebuild/redeployment followed by a final-alphabet product selection smoke
+  test.
+- Files updated: frontend API/pagination helpers and affected selectors,
+  `src/frontend/tests/pagination.test.mjs`, frontend package scripts, CI, README,
+  this context file, and the production incident record.
+- Validation completed: all 197 PostgreSQL-backed backend tests passed; Ruff,
+  frontend tests, ESLint, TypeScript, the Next.js production build, the EC2
+  frontend image build, the Next.js 15.5.24 security version gate, and whitespace
+  checks passed. The production audit still reports the already-documented
+  Next.js-internal PostCSS advisory chain that requires a breaking Next.js 16
+  upgrade and is not runtime-reachable through this application's build-only,
+  repository-owned CSS input.
+- Next recommended step: deploy the rebuilt stack using the guarded production
+  update process and smoke-test the affected selectors before users resume entry.
+
+### 2026-08-27 — Next.js 15.5 security release applied
 
 - Updated Next.js from 15.5.21 to patched Maintenance LTS 15.5.24 without adopting
   the breaking Next.js 16 major release; refreshed the lockfile and compatible

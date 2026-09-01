@@ -4,7 +4,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 
 import AttachmentsPanel from "@/components/attachments-panel";
 import Pagination from "@/components/pagination";
-import { api, errorMessage } from "@/lib/api";
+import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
 
@@ -144,14 +144,18 @@ export default function PurchasesPage() {
   }, [load]);
 
   useEffect(() => {
-    const fetchAll = async (path: string) =>
-      (await api<{ results: Option[] }>(path)).results;
-    fetchAll("/api/v1/products/?is_active=true").then(setProducts).catch(() => undefined);
-    fetchAll("/api/v1/locations/?can_purchase=true&is_active=true")
+    apiAll<Option>("/api/v1/products/?is_active=true")
+      .then(setProducts)
+      .catch(() => undefined);
+    apiAll<Option>("/api/v1/locations/?can_purchase=true&is_active=true")
       .then(setLocations)
       .catch(() => undefined);
-    fetchAll("/api/v1/suppliers/?is_active=true").then(setSuppliers).catch(() => undefined);
-    fetchAll("/api/v1/currencies/?is_active=true").then(setCurrencies).catch(() => undefined);
+    apiAll<Option>("/api/v1/suppliers/?is_active=true")
+      .then(setSuppliers)
+      .catch(() => undefined);
+    apiAll<Option>("/api/v1/currencies/?is_active=true")
+      .then(setCurrencies)
+      .catch(() => undefined);
   }, []);
 
   function openCreate() {
