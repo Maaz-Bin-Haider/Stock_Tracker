@@ -3,6 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
+from apps.accounts.handoff import workspace_handoff
 from apps.accounts.views import LoginView, LogoutView, MeView, UserViewSet
 from apps.attachments.views import FileAttachmentViewSet
 from apps.audits.views import AuditLogViewSet
@@ -58,6 +59,9 @@ urlpatterns = [
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("api/v1/auth/me/", MeView.as_view(), name="auth-me"),
+    # Identity handoff from the ERP workspace page. Lives under /api/ so the
+    # existing nginx rule proxies it to Django with no deployment change.
+    path("api/v1/auth/handoff/", workspace_handoff, name="auth-handoff"),
     # Fixed report paths must precede the <slug:key> catch-all.
     path("api/v1/reports/dashboard/", DashboardView.as_view(), name="reports-dashboard"),
     path(

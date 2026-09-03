@@ -33,6 +33,8 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.dev
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379/0
+      # Shared secret for the ERP workspace handoff. Empty = handoff off.
+      WORKSPACE_HANDOFF_SECRET: ${WORKSPACE_HANDOFF_SECRET:-}
     volumes:
       - ../src/backend:/app
     depends_on:

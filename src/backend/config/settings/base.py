@@ -130,3 +130,33 @@ SPECTACULAR_SETTINGS = {
 
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
+# Shared cache. Single-use workspace-handoff nonces must be visible to every
+# gunicorn worker, so production needs a real Redis cache; the in-memory
+# fallback is per-process and only safe for a single-process dev server.
+# Django namespaces its keys, so sharing Redis with Celery is safe.
+_CACHE_URL = os.environ.get("DJANGO_CACHE_URL", "") or os.environ.get("REDIS_URL", "")
+CACHES = {
+    "default": (
+        {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _CACHE_URL,
+        }
+        if _CACHE_URL
+        else {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "stock-tracker-local",
+        }
+    )
+}
+
+# Workspace handoff from the Accounting ERP (apps/accounts/handoff.py).
+# Empty = the feature is off and the endpoint is inert. To enable it, set the
+# SAME value here and in the ERP's environment, and nowhere else. Generate one
+# with: python -c "import secrets; print(secrets.token_urlsafe(48))"
+WORKSPACE_HANDOFF_SECRET = os.environ.get("WORKSPACE_HANDOFF_SECRET", "")
+# Seconds a handoff token stays valid. It only has to cover one redirect, so
+# keep it short; the token is single-use regardless.
+WORKSPACE_HANDOFF_MAX_AGE_SECONDS = int(
+    os.environ.get("WORKSPACE_HANDOFF_MAX_AGE_SECONDS", "30")
+)
