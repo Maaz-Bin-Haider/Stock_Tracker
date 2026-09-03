@@ -118,11 +118,11 @@ export default function WorkspaceSwitcher() {
   );
 
   const triggerClass =
-    "flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-2";
+    "flex w-full items-center gap-2.5 rounded-md px-3 py-[0.58rem] text-[0.875rem] text-sidebar-link transition-colors hover:bg-[rgba(255,255,255,0.06)] hover:text-white";
 
   return (
     <div
-      className="border-b border-edge px-2 py-2"
+      className="border-b border-sidebar-border px-3 py-2.5"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
@@ -153,7 +153,7 @@ export default function WorkspaceSwitcher() {
             href={workspace.url}
             onClick={(event) => leave(workspace, event)}
             style={accentStyle(workspace)}
-            className="mt-1 flex items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-2"
+            className="mt-1 flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-[rgba(255,255,255,0.06)]"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
@@ -162,8 +162,8 @@ export default function WorkspaceSwitcher() {
               <Glyph icon={workspace.icon} size={14} />
             </span>
             <span className="min-w-0">
-              <span className="block text-[0.8rem] font-medium text-ink">{workspace.name}</span>
-              <span className="block truncate text-[0.66rem] text-muted">
+              <span className="block text-[0.8rem] font-medium text-sidebar-text">{workspace.name}</span>
+              <span className="block truncate text-[0.66rem] text-sidebar-link opacity-70">
                 {workspace.modules.join(" · ")}
               </span>
             </span>
