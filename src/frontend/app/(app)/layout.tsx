@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import WorkspaceSwitcher from "@/components/workspace-switcher";
 import { api } from "@/lib/api";
 import { AuthContext, type SessionUser } from "@/lib/auth";
 import { applyTheme, isDarkActive, type ThemePreference } from "@/lib/theme";
@@ -85,6 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="text-sm font-semibold">SwissTech</div>
         <div className="text-xs text-muted">Stock Tracker</div>
       </div>
+      <WorkspaceSwitcher />
       <nav className="flex-1 overflow-y-auto p-2 text-sm">
         {NAV.filter((item) => !item.adminOnly || user?.role === "ADMIN").map((item) => (
           <Link
