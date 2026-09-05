@@ -167,8 +167,36 @@ If a change affects requirements, workflows, permissions, entities, database des
   location, supplier and currency ids, edit mode repopulates every control, the
   ledger posted correctly, and the list is neither clipped by the invoice modal
   nor pushed off a mobile viewport.
-- Next recommended step: rebuild and redeploy the frontend image, then run the
-  rollout check in the incident record before users resume entry.
+- **Fixed a production healthcheck false negative found during this deployment.**
+  `docker compose ps` had reported nginx "unhealthy" for days while it served every
+  request normally. nginx binds IPv4 only, but inside the container `localhost`
+  also resolves to `::1`, and busybox wget gives up on the refused IPv6 attempt
+  instead of falling back. The check now targets `127.0.0.1`; nginx reports
+  healthy again, so a genuine nginx failure is no longer indistinguishable from
+  this noise. The backend check was never affected — Python's urllib does fall back.
+- **Deployed to production 2026-09-05** following `AWS_EC2_GUIDE.md` §14: users
+  stopped by the client, backup pair `20260905-134503` created on EC2 and copied to
+  the Mac (gzip/tar integrity verified), source transferred by `rsync` with the
+  documented exclusions (`.env.ec2` untouched at mode 600, 52 backup files intact),
+  and the stack rebuilt with `docker compose up -d --build`. Next.js 15.5.24 built
+  cleanly; backend, worker, frontend and nginx were recreated; postgres, redis and
+  the backup sidecar kept running. No database migration was involved.
+- Post-deployment `scripts/verify-ec2.sh` passed in full: seven services running,
+  nginx **healthy**, HTTPS health 200, HTTP 301 redirect, certificate valid to
+  2026-09-10 with the four-times-daily renewal timer armed, Django check clean, no
+  unapplied migrations, **stock ledger reconciles with the ledger (no drift)**, and
+  a matched backup pair present. The combobox code was confirmed in the publicly
+  served client chunk.
+- **Open finding, not fixed here (pre-existing, from 275fc86):** the DM Sans
+  `@import` in `globals.css` sits after other rules, so the production CSS
+  optimizer drops it — the built stylesheet contains no `fonts.googleapis.com`
+  reference and production falls back to `system-ui` rather than the ERP's
+  typeface. The build prints "@import rules must precede all rules aside from
+  @charset and @layer". Moving that `@import` to the very first line of
+  `globals.css` should restore it; worth confirming against the ERP's own rendering.
+- Next recommended step: complete the four-role acceptance checklist in
+  `AWS_EC2_GUIDE.md` §9 and the dropdown rollout check in the incident record,
+  then decide on the DM Sans `@import` finding above.
 
 ### 2026-09-01 — production product dropdown pagination fix
 
