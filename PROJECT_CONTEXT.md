@@ -187,16 +187,23 @@ If a change affects requirements, workflows, permissions, entities, database des
   unapplied migrations, **stock ledger reconciles with the ledger (no drift)**, and
   a matched backup pair present. The combobox code was confirmed in the publicly
   served client chunk.
-- **Open finding, not fixed here (pre-existing, from 275fc86):** the DM Sans
-  `@import` in `globals.css` sits after other rules, so the production CSS
-  optimizer drops it — the built stylesheet contains no `fonts.googleapis.com`
-  reference and production falls back to `system-ui` rather than the ERP's
-  typeface. The build prints "@import rules must precede all rules aside from
-  @charset and @layer". Moving that `@import` to the very first line of
-  `globals.css` should restore it; worth confirming against the ERP's own rendering.
+- **Fixed DM Sans not loading in production (pre-existing, from 275fc86).** The
+  restyle set DM Sans as the typeface shared with the ERP, but the built
+  stylesheet carried no `fonts.googleapis.com` reference at all and production
+  rendered in `system-ui`. `@import "tailwindcss"` is inlined where it appears,
+  so the font `@import` that followed it ended up behind thousands of generated
+  rules; CSS requires `@import` to precede everything except `@charset`/`@layer`,
+  so the optimizer dropped it and only warned. Moved the font `@import` above the
+  Tailwind one and redeployed. Verified on production: the built CSS carries the
+  import, Google Fonts returns eight DM Sans `@font-face` blocks, and a real
+  browser reports `document.fonts.check('600 16px "DM Sans"') === true` with
+  weights 400/500/600 loaded.
+  Note for the offline/local (M9) profile: this face is fetched from Google, so a
+  machine with no internet access still falls back to `system-ui`. Self-hosting
+  the font would be needed if the offline trial must match the ERP exactly.
 - Next recommended step: complete the four-role acceptance checklist in
-  `AWS_EC2_GUIDE.md` §9 and the dropdown rollout check in the incident record,
-  then decide on the DM Sans `@import` finding above.
+  `AWS_EC2_GUIDE.md` §9 and the dropdown rollout check in the incident record
+  before users resume entry.
 
 ### 2026-09-01 — production product dropdown pagination fix
 
