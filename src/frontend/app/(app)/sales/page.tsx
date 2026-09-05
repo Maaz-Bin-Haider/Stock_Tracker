@@ -1,16 +1,19 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import AttachmentsPanel from "@/components/attachments-panel";
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
 
 interface Option {
   id: number;
   name?: string;
+  storage_specs?: string;
 }
 
 interface LineForm {
@@ -104,6 +107,10 @@ export default function SalesPage() {
   const [products, setProducts] = useState<Option[]>([]);
   const [locations, setLocations] = useState<Option[]>([]);
   const [customers, setCustomers] = useState<Option[]>([]);
+
+  const productOptions = useMemo(() => toOptions(products), [products]);
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
+  const customerOptions = useMemo(() => toOptions(customers), [customers]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -389,38 +396,26 @@ export default function SalesPage() {
                 <span className="mb-1 block font-medium text-ink-2">
                   Location <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
                   disabled={Boolean(editing)}
+                  options={locationOptions}
                   value={header.location}
-                  onChange={(e) => setHeader({ ...header, location: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, location: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
                   Customer <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={customerOptions}
                   value={header.customer}
-                  onChange={(e) => setHeader({ ...header, customer: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, customer: next })}
+                />
               </label>
             </div>
 
@@ -443,23 +438,17 @@ export default function SalesPage() {
                   >
                     <label className="block text-xs lg:col-span-2">
                       <span className="mb-1 block font-medium text-ink-2">Product *</span>
-                      <select
+                      <Combobox
                         className={inputCls}
                         required
+                        options={productOptions}
                         value={line.product}
-                        onChange={(e) => {
+                        onChange={(value) => {
                           const next = [...lines];
-                          next[index] = { ...line, product: e.target.value };
+                          next[index] = { ...line, product: value };
                           setLines(next);
                         }}
-                      >
-                        <option value="">— select —</option>
-                        {products.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
                     <label className="block text-xs">
                       <span className="mb-1 block font-medium text-ink-2">Qty *</span>

@@ -1,15 +1,18 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
 
 interface Option {
   id: number;
   name?: string;
+  storage_specs?: string;
 }
 
 interface LineForm {
@@ -69,6 +72,11 @@ interface ListResponse {
 }
 
 const emptyLine = (): LineForm => ({ product: "", quantity: "", notes: "" });
+
+const SHIPMENT_TYPE_OPTIONS = [
+  { value: "STANDARD", label: "Standard" },
+  { value: "DUBAI_KARACHI", label: "Dubai → Karachi transfer" },
+];
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: "bg-surface-2 text-ink-2",
@@ -151,6 +159,9 @@ export default function ShipmentsPage() {
 
   const [products, setProducts] = useState<Option[]>([]);
   const [locations, setLocations] = useState<Option[]>([]);
+
+  const productOptions = useMemo(() => toOptions(products), [products]);
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -669,48 +680,35 @@ export default function ShipmentsPage() {
                 <span className="mb-1 block font-medium text-ink-2">
                   From location <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={locationOptions}
                   value={header.from_location}
-                  onChange={(e) => setHeader({ ...header, from_location: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, from_location: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
                   To location <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={locationOptions}
                   value={header.to_location}
-                  onChange={(e) => setHeader({ ...header, to_location: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, to_location: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">Type</span>
-                <select
+                <Combobox
                   className={inputCls}
+                  options={SHIPMENT_TYPE_OPTIONS}
+                  placeholder="Standard"
                   value={header.shipment_type}
-                  onChange={(e) => setHeader({ ...header, shipment_type: e.target.value })}
-                >
-                  <option value="STANDARD">Standard</option>
-                  <option value="DUBAI_KARACHI">Dubai → Karachi transfer</option>
-                </select>
+                  onChange={(next) => setHeader({ ...header, shipment_type: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
@@ -749,23 +747,17 @@ export default function ShipmentsPage() {
                   >
                     <label className="block text-xs lg:col-span-2">
                       <span className="mb-1 block font-medium text-ink-2">Product *</span>
-                      <select
+                      <Combobox
                         className={inputCls}
                         required
+                        options={productOptions}
                         value={line.product}
-                        onChange={(e) => {
+                        onChange={(value) => {
                           const next = [...lines];
-                          next[index] = { ...line, product: e.target.value };
+                          next[index] = { ...line, product: value };
                           setLines(next);
                         }}
-                      >
-                        <option value="">— select —</option>
-                        {products.map((product) => (
-                          <option key={product.id} value={product.id}>
-                            {product.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </label>
                     <label className="block text-xs">
                       <span className="mb-1 block font-medium text-ink-2">Qty *</span>

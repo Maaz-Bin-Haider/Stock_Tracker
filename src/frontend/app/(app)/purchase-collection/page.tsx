@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
 
 interface PendingLine {
@@ -41,6 +43,8 @@ export default function PurchaseCollectionPage() {
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
   const [locations, setLocations] = useState<Option[]>([]);
+
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
   const [locationFilter, setLocationFilter] = useState("");
   const [quantities, setQuantities] = useState<Record<number, string>>({});
   const [collectionDate, setCollectionDate] = useState(
@@ -107,18 +111,15 @@ export default function PurchaseCollectionPage() {
               onChange={(e) => setCollectionDate(e.target.value)}
             />
           </label>
-          <select
-            className="rounded border border-edge px-2 py-1.5"
+          <Combobox
+            className="rounded border border-edge bg-surface px-2 py-1.5"
+            wrapperClassName="w-48"
+            options={locationOptions}
+            placeholder="All locations"
+            allowEmpty
             value={locationFilter}
-            onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All locations</option>
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => { setLocationFilter(next); setPage(1); }}
+          />
         </div>
       </div>
 

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, errorMessage } from "@/lib/api";
+import { optionLabel, type ChoiceOption } from "@/lib/options";
 
 export type FieldType =
   | "text"
@@ -50,6 +52,22 @@ function formatCell(value: unknown): string {
   return String(value);
 }
 
+function text(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** Label for a foreign-key choice: an explicit column, else the shared rule. */
+function fkLabel(row: Row, key?: string): string {
+  if (key) return String(row[key] ?? row.id);
+  return optionLabel({
+    id: row.id,
+    name: text(row.name),
+    code: text(row.code),
+    username: text(row.username),
+    storage_specs: text(row.storage_specs),
+  });
+}
+
 export default function ResourceCrud({
   title,
   endpoint,
@@ -74,9 +92,7 @@ export default function ResourceCrud({
   const [values, setValues] = useState<FormValues>({});
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
-  const [fkOptions, setFkOptions] = useState<
-    Record<string, { value: string; label: string }[]>
-  >({});
+  const [fkOptions, setFkOptions] = useState<Record<string, ChoiceOption[]>>({});
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -100,7 +116,7 @@ export default function ResourceCrud({
             ...prev,
             [field.name]: rows.map((row) => ({
               value: String(row.id),
-              label: String(row[field.optionLabelKey ?? "name"] ?? row.id),
+              label: fkLabel(row, field.optionLabelKey),
             })),
           })),
         )
@@ -193,19 +209,14 @@ export default function ResourceCrud({
     if (field.type === "select" || field.optionsEndpoint) {
       const options = field.options ?? fkOptions[field.name] ?? [];
       return (
-        <select
+        <Combobox
           className={shared}
+          options={options}
+          allowEmpty
           required={field.required}
           value={String(value ?? "")}
-          onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
-        >
-          <option value="">— select —</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(next) => setValues((prev) => ({ ...prev, [field.name]: next }))}
+        />
       );
     }
     if (field.type === "textarea") {

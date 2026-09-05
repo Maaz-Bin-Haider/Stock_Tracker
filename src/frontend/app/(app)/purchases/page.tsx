@@ -1,17 +1,20 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import AttachmentsPanel from "@/components/attachments-panel";
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
 
 interface Option {
   id: number;
   name?: string;
   code?: string;
+  storage_specs?: string;
 }
 
 interface LineForm {
@@ -127,6 +130,15 @@ export default function PurchasesPage() {
   const [locations, setLocations] = useState<Option[]>([]);
   const [suppliers, setSuppliers] = useState<Option[]>([]);
   const [currencies, setCurrencies] = useState<Option[]>([]);
+
+  const productOptions = useMemo(() => toOptions(products), [products]);
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
+  const supplierOptions = useMemo(() => toOptions(suppliers), [suppliers]);
+  // Currencies are picked by their code, as they always have been.
+  const currencyOptions = useMemo(
+    () => toOptions(currencies, (currency) => currency.code ?? currency.name ?? `#${currency.id}`),
+    [currencies],
+  );
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -450,38 +462,26 @@ export default function PurchasesPage() {
                 <span className="mb-1 block font-medium text-ink-2">
                   Location <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
                   disabled={Boolean(editing)}
+                  options={locationOptions}
                   value={header.location}
-                  onChange={(e) => setHeader({ ...header, location: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, location: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
                   Supplier/party <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={supplierOptions}
                   value={header.supplier}
-                  onChange={(e) => setHeader({ ...header, supplier: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setHeader({ ...header, supplier: next })}
+                />
               </label>
             </div>
 
@@ -508,24 +508,18 @@ export default function PurchasesPage() {
                         <span className="mb-1 block font-medium text-ink-2">
                           Product *
                         </span>
-                        <select
+                        <Combobox
                           className={inputCls}
                           required
                           disabled={locked}
+                          options={productOptions}
                           value={line.product}
-                          onChange={(e) => {
+                          onChange={(value) => {
                             const next = [...lines];
-                            next[index] = { ...line, product: e.target.value };
+                            next[index] = { ...line, product: value };
                             setLines(next);
                           }}
-                        >
-                          <option value="">— select —</option>
-                          {products.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </label>
                       <label className="block text-xs">
                         <span className="mb-1 block font-medium text-ink-2">Qty *</span>
@@ -566,24 +560,18 @@ export default function PurchasesPage() {
                         <span className="mb-1 block font-medium text-ink-2">
                           Currency *
                         </span>
-                        <select
+                        <Combobox
                           className={inputCls}
                           required
                           disabled={locked}
+                          options={currencyOptions}
                           value={line.currency}
-                          onChange={(e) => {
+                          onChange={(value) => {
                             const next = [...lines];
-                            next[index] = { ...line, currency: e.target.value };
+                            next[index] = { ...line, currency: value };
                             setLines(next);
                           }}
-                        >
-                          <option value="">— select —</option>
-                          {currencies.map((currency) => (
-                            <option key={currency.id} value={currency.id}>
-                              {currency.code}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </label>
                       <label className="block text-xs">
                         <span className="mb-1 block font-medium text-ink-2">

@@ -118,7 +118,59 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-09-01 (latest) — production product dropdown pagination fix
+### 2026-09-05 (latest) — searchable dropdowns across the whole system
+
+- Fixed every choice control being effectively unsearchable. All 22 of them were
+  native `<select>` elements, whose browser type-ahead buffer expires after about
+  a second: typing "starlink" at human speed was not one search but a series of
+  single-letter searches, so it finished on the first entry starting with "k".
+  Native type-ahead is also prefix-only and shows nothing of what was typed, so
+  with 200+ products the only dependable method was scrolling the whole list.
+- Added `components/combobox.tsx`, one searchable single-select now used by every
+  choice control, and `lib/options.ts` holding the labelling and ranking rules
+  free of React so they are unit-testable. The whole query is used, matching is
+  case-insensitive and works mid-label, and whitespace tokens may be typed in any
+  order ("iphone 256" finds "iPhone 15 Pro 256GB").
+- Ranking keeps the habit users already had: exact label, then labels starting
+  with the query, then a word starting with it, then labels containing it — a
+  lone "s" still lands on the first S entry, while "starlink" lands on Starlink.
+- Product labels now include storage/specs on every screen (previously only the
+  report filters did), so two products sharing a name (allowed by FR-018/FR-019)
+  are distinguishable and findable.
+- Lists render in a portal with fixed positioning, so the modals' `overflow-y-auto`
+  containers no longer clip them, and they flip above the field when there is no
+  room below (SRS §7.6). Verified on a 375x812 viewport and in both themes.
+- Keyboard behaviour preserved and extended: arrows move, Enter selects, Esc
+  reverts, Home/End jump; lists of eight or fewer entries stay read-only so a
+  tablet keyboard does not open for a two-choice field, while keeping the
+  first-letter jump. Required fields keep the browser's own validation, and a
+  query that resolves to nothing is reverted on blur so the box can never show
+  text that is not a real selection.
+- **Separate bug found while verifying:** every authenticated write through the
+  dev stack failed CSRF. `deployment/nginx/default.conf` forwards `Host: $host`,
+  which nginx supplies without the port, so Django compared the browser's
+  `Origin: http://localhost:8080` against `http://localhost` and refused it.
+  Requests without an `Origin` header (curl, the test client) were unaffected,
+  which is why the suite never caught it — but no browser write worked in dev.
+  `config/settings/dev.py` now sets `CSRF_TRUSTED_ORIGINS` for the local origins.
+  Development only; `local_prod`/`prod` already read `DJANGO_CSRF_TRUSTED_ORIGINS`.
+- Files updated: `src/frontend/lib/options.ts` (new),
+  `src/frontend/components/combobox.tsx` (new), `components/{resource-crud,report-view}.tsx`,
+  the purchases, sales, shipments, stock-adjustments, stock-ledger,
+  purchase-collection, purchase-refunds and reports pages,
+  `src/frontend/tests/options.test.mjs` (new), `src/backend/config/settings/dev.py`,
+  `docs/production-issues/2026-09-05-dropdown-type-ahead.md` (new), and this file.
+- Validation completed: 212 PostgreSQL-backed backend tests, 27 frontend tests,
+  Ruff, ESLint, TypeScript and the Next.js production build all pass. Verified
+  live through nginx: typing "starlink" narrows to the two Starlink products,
+  "256" finds both 256GB phones, a full purchase saved with the correct product,
+  location, supplier and currency ids, edit mode repopulates every control, the
+  ledger posted correctly, and the list is neither clipped by the invoice modal
+  nor pushed off a mobile viewport.
+- Next recommended step: rebuild and redeploy the frontend image, then run the
+  rollout check in the incident record before users resume entry.
+
+### 2026-09-01 — production product dropdown pagination fix
 
 - Fixed the production purchase-invoice product dropdown showing only the first
   alphabetic group when more than 200 products existed. DRF paginates list APIs

@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 
 interface LedgerEntry {
   id: number;
@@ -41,6 +43,11 @@ interface Option {
 
 const BUCKETS = ["PHYSICAL", "PENDING", "IN_TRANSIT"];
 
+const BUCKET_OPTIONS = BUCKETS.map((bucket) => ({
+  value: bucket,
+  label: bucket.replaceAll("_", " "),
+}));
+
 const BUCKET_STYLES: Record<string, string> = {
   PHYSICAL: "bg-success-soft text-success",
   PENDING: "bg-warning-soft text-warning",
@@ -69,6 +76,8 @@ export default function StockLedgerPage() {
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
   const [locations, setLocations] = useState<Option[]>([]);
+
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
   const [locationFilter, setLocationFilter] = useState("");
   const [bucketFilter, setBucketFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -118,30 +127,24 @@ export default function StockLedgerPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
-          <select
-            className="rounded border border-edge px-2 py-1.5"
+          <Combobox
+            className="rounded border border-edge bg-surface px-2 py-1.5"
+            wrapperClassName="w-48"
+            options={locationOptions}
+            placeholder="All locations"
+            allowEmpty
             value={locationFilter}
-            onChange={(e) => { setLocationFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All locations</option>
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="rounded border border-edge px-2 py-1.5"
+            onChange={(next) => { setLocationFilter(next); setPage(1); }}
+          />
+          <Combobox
+            className="rounded border border-edge bg-surface px-2 py-1.5"
+            wrapperClassName="w-40"
+            options={BUCKET_OPTIONS}
+            placeholder="All buckets"
+            allowEmpty
             value={bucketFilter}
-            onChange={(e) => { setBucketFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All buckets</option>
-            {BUCKETS.map((bucket) => (
-              <option key={bucket} value={bucket}>
-                {bucket.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => { setBucketFilter(next); setPage(1); }}
+          />
         </div>
       </div>
 

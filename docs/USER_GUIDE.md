@@ -138,6 +138,16 @@ locations. All seven locations can buy.
 something, the system adds a *reversing* record rather than erasing the original.
 You can always trace what happened.
 
+**One more thing — finding an entry in a dropdown.** Every list you pick from
+(product, location, supplier, customer, currency, category, report…) is
+searchable. Click it and start typing any part of what you are looking for — you
+do not have to start at the beginning of the name and you do not have to type
+fast. Typing `link` finds **Starlink**, and `iphone 256` finds **iPhone 15 Pro
+256GB**. The list narrows as you type; press **Enter** to take the highlighted
+entry, or the **Up/Down arrows** to move through the matches first. Press
+**Esc** to close without changing anything. Products show their storage/specs in
+the list, so two items with the same name are easy to tell apart.
+
 **One more thing — negative stock warnings.** If an action would take stock below
 zero (for example, selling more than you have on hand), the system stops and asks
 you to confirm. Click **OK** to proceed anyway (the figure will show in **red** as a
@@ -712,6 +722,12 @@ Section 3, or ask the right person.
 **A dropdown (product, supplier, currency…) is empty.**
 That reference list hasn't been set up yet. Ask an Admin to add the item under
 **Settings** (or **Products** for products), then try again.
+
+**I can't find an item in a long dropdown.**
+Don't scroll — type. Click the box and type any part of the name; the list
+narrows to matches as you type. If nothing matches, the box says so, which
+usually means the item hasn't been created yet (see the previous answer) or it
+has been marked inactive.
 
 **I can't collect / sell an item.**
 Make sure it exists as a **Product** and that there's stock in the right bucket at

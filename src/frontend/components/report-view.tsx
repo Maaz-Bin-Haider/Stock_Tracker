@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import { api, apiAll, errorMessage } from "@/lib/api";
+import { toOptions } from "@/lib/options";
 
 export interface ReportMeta {
   key: string;
@@ -115,11 +117,6 @@ export function formatCell(value: unknown, kind: string): string {
     return day && month ? `${day}/${month}/${year}` : String(value);
   }
   return String(value);
-}
-
-function optionLabel(option: Option): string {
-  const name = option.name ?? option.username ?? `#${option.id}`;
-  return option.storage_specs ? `${name} ${option.storage_specs}` : name;
 }
 
 export default function ReportView({ report }: { report: ReportMeta }) {
@@ -235,26 +232,31 @@ export default function ReportView({ report }: { report: ReportMeta }) {
     }
     if (SELECT_FILTERS[name]) {
       return (
-        <select className={base} value={value} onChange={(e) => setFilter(name, e.target.value)}>
-          <option value="">All</option>
-          {(options[name] ?? []).map((option) => (
-            <option key={option.id} value={option.id}>
-              {optionLabel(option)}
-            </option>
-          ))}
-        </select>
+        <Combobox
+          className={base}
+          wrapperClassName="w-56"
+          options={toOptions(options[name] ?? [])}
+          placeholder="All"
+          allowEmpty
+          value={value}
+          onChange={(next) => setFilter(name, next)}
+        />
       );
     }
     if (ENUM_FILTERS[name]) {
       return (
-        <select className={base} value={value} onChange={(e) => setFilter(name, e.target.value)}>
-          <option value="">All</option>
-          {ENUM_FILTERS[name].map((choice) => (
-            <option key={choice} value={choice}>
-              {choice.replaceAll("_", " ")}
-            </option>
-          ))}
-        </select>
+        <Combobox
+          className={base}
+          wrapperClassName="w-48"
+          options={ENUM_FILTERS[name].map((choice) => ({
+            value: choice,
+            label: choice.replaceAll("_", " "),
+          }))}
+          placeholder="All"
+          allowEmpty
+          value={value}
+          onChange={(next) => setFilter(name, next)}
+        />
       );
     }
     return (

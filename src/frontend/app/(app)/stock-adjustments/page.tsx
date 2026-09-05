@@ -1,16 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
 
 interface Option {
   id: number;
   name?: string;
+  storage_specs?: string;
 }
+
+const ADJUSTMENT_TYPE_OPTIONS = [
+  { value: "DECREASE", label: "Decrease (damaged, lost, count down)" },
+  { value: "INCREASE", label: "Increase (extra found, count up)" },
+];
 
 interface Adjustment {
   id: number;
@@ -83,6 +91,9 @@ export default function StockAdjustmentsPage() {
 
   const [products, setProducts] = useState<Option[]>([]);
   const [locations, setLocations] = useState<Option[]>([]);
+
+  const productOptions = useMemo(() => toOptions(products), [products]);
+  const locationOptions = useMemo(() => toOptions(locations), [locations]);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -313,51 +324,37 @@ export default function StockAdjustmentsPage() {
                 <span className="mb-1 block font-medium text-ink-2">
                   Location <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={locationOptions}
                   value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setForm({ ...form, location: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
                   Product <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={productOptions}
                   value={form.product}
-                  onChange={(e) => setForm({ ...form, product: e.target.value })}
-                >
-                  <option value="">— select —</option>
-                  {products.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(next) => setForm({ ...form, product: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">
                   Type <span className="text-danger">*</span>
                 </span>
-                <select
+                <Combobox
                   className={inputCls}
                   required
+                  options={ADJUSTMENT_TYPE_OPTIONS}
                   value={form.adjustment_type}
-                  onChange={(e) => setForm({ ...form, adjustment_type: e.target.value })}
-                >
-                  <option value="DECREASE">Decrease (damaged, lost, count down)</option>
-                  <option value="INCREASE">Increase (extra found, count up)</option>
-                </select>
+                  onChange={(next) => setForm({ ...form, adjustment_type: next })}
+                />
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-ink-2">

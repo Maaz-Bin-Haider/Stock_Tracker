@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import ReportView, { type ReportMeta } from "@/components/report-view";
 import { api, errorMessage } from "@/lib/api";
 
@@ -75,22 +76,23 @@ export default function ReportsPage() {
   }, []);
 
   const selected = reports.find((report) => report.key === selectedKey);
+  const reportOptions = useMemo(
+    () => reports.map((report) => ({ value: report.key, label: report.title })),
+    [reports],
+  );
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold">Reports</h1>
-        <select
+        <Combobox
           className="rounded border border-edge bg-surface px-3 py-1.5 text-sm"
+          wrapperClassName="w-72"
+          options={reportOptions}
+          placeholder="Choose a report"
           value={selectedKey}
-          onChange={(e) => setSelectedKey(e.target.value)}
-        >
-          {reports.map((report) => (
-            <option key={report.key} value={report.key}>
-              {report.title}
-            </option>
-          ))}
-        </select>
+          onChange={setSelectedKey}
+        />
         {selected && <span className="text-sm text-muted">{selected.description}</span>}
       </div>
 

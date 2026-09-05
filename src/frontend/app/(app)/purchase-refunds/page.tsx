@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import Combobox from "@/components/combobox";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/permissions";
@@ -49,6 +50,11 @@ interface Refund {
   lines: RefundLine[];
   created_by_username: string | null;
 }
+
+const SOURCE_OPTIONS = [
+  { value: "PENDING", label: "Pending (cancel)" },
+  { value: "RECEIVED", label: "Received (return stock)" },
+];
 
 export default function PurchaseRefundsPage() {
   const user = useAuth();
@@ -268,22 +274,20 @@ export default function PurchaseRefundsPage() {
                           />
                         </td>
                         <td className="px-4 py-2">
-                          <select
+                          <Combobox
                             className={inputCls}
+                            options={SOURCE_OPTIONS}
                             value={inputs[line.id]?.source ?? "PENDING"}
-                            onChange={(e) =>
+                            onChange={(next) =>
                               setInputs((prev) => ({
                                 ...prev,
                                 [line.id]: {
                                   quantity: prev[line.id]?.quantity ?? "",
-                                  source: e.target.value as "PENDING" | "RECEIVED",
+                                  source: next as "PENDING" | "RECEIVED",
                                 },
                               }))
                             }
-                          >
-                            <option value="PENDING">Pending (cancel)</option>
-                            <option value="RECEIVED">Received (return stock)</option>
-                          </select>
+                          />
                         </td>
                       </>
                     )}
