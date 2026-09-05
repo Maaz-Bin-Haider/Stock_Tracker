@@ -120,7 +120,11 @@ services:
       frontend:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/nginx-health"]
+      # 127.0.0.1, not localhost: nginx binds IPv4 only, and inside the
+      # container localhost resolves to ::1 first, which busybox wget tries
+      # without falling back — reporting the public entry point as unhealthy
+      # while it serves traffic perfectly.
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/nginx-health"]
       interval: 15s
       timeout: 5s
       retries: 5
