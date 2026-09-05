@@ -1,8 +1,14 @@
-@import "tailwindcss";
 /* DM Sans is the Accounting ERP's typeface; the two systems should read as one
    product. Loaded here rather than via next/font so the value stays a plain
-   token the CSS below can reference. */
+   token the CSS below can reference.
+
+   This must stay the FIRST rule in the file. `@import "tailwindcss"` is inlined
+   in place, so anything after it lands behind thousands of generated rules —
+   and CSS requires @import to precede everything except @charset and @layer.
+   The production optimizer therefore dropped this import entirely and the app
+   silently fell back to system-ui. */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+@import "tailwindcss";
 
 /*
  * Semantic design tokens (TECHNICAL_ARCHITECTURE §9.1, FR-124…FR-127).
