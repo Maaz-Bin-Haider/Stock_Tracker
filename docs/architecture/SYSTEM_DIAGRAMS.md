@@ -1000,6 +1000,7 @@ erDiagram
         datetime transaction_at
         string transaction_type
         string source_module
+        string source_type
         bigint source_record_id
         bigint source_line_id
         bigint product_id FK

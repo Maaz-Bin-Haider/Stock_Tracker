@@ -21,6 +21,7 @@ class StockLedgerEntrySerializer(serializers.ModelSerializer):
             "txn_at",
             "txn_type",
             "source_module",
+            "source_type",
             "source_id",
             "source_line_id",
             "reversal_of",

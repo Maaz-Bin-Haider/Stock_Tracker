@@ -25,7 +25,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
-from apps.inventory.models import Bucket, StockBalance, StockLedgerEntry, TxnType
+from apps.inventory.models import Bucket, SourceType, StockBalance, StockLedgerEntry, TxnType
 from apps.inventory.services import Movement, post_event, reversal_movements
 
 from .models import Shipment, ShipmentLine, ShipmentReceipt, ShipmentReceiptLine
@@ -174,6 +174,7 @@ def ship_shipment(*, shipment: Shipment, user, confirm_negative=False) -> Shipme
     post_event(
         txn_type=TxnType.SHIPMENT_OUT,
         source_module=MODULE,
+        source_type=SourceType.SHIPMENT,
         source_id=shipment.pk,
         movements=movements,
         created_by=user,
@@ -335,6 +336,7 @@ def receive_shipment(
     post_event(
         txn_type=TxnType.SHIPMENT_RECEIPT,
         source_module=MODULE,
+        source_type=SourceType.SHIPMENT_RECEIPT,
         source_id=receipt.pk,
         movements=movements,
         created_by=user,
@@ -358,9 +360,7 @@ def delete_receipt(*, receipt: ShipmentReceipt, user, confirm_negative=False) ->
     before = snapshot_receipt(receipt)
 
     entries = StockLedgerEntry.objects.filter(
-        source_module=MODULE,
-        txn_type=TxnType.SHIPMENT_RECEIPT,
-        source_id=receipt.pk,
+        source_type=SourceType.SHIPMENT_RECEIPT, source_id=receipt.pk
     )
     movements = reversal_movements(entries, notes="Receipt deleted.")
 
@@ -373,6 +373,7 @@ def delete_receipt(*, receipt: ShipmentReceipt, user, confirm_negative=False) ->
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.SHIPMENT_RECEIPT,
             source_id=receipt.pk,
             movements=movements,
             created_by=user,
@@ -464,6 +465,7 @@ def cancel_shipment(*, shipment: Shipment, reason="", user) -> Shipment:
         post_event(
             txn_type=TxnType.SHIPMENT_CANCEL,
             source_module=MODULE,
+            source_type=SourceType.SHIPMENT,
             source_id=shipment.pk,
             movements=movements,
             created_by=user,
@@ -509,6 +511,7 @@ def soft_delete_shipment(*, shipment: Shipment, user, confirm_negative=False) ->
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.SHIPMENT,
             source_id=shipment.pk,
             movements=movements,
             created_by=user,

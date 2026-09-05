@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 from apps.accounts.models import User
-from apps.inventory.models import Bucket, TxnType
+from apps.inventory.models import Bucket, SourceType, TxnType
 from apps.inventory.services import Movement, post_event
 
 pytestmark = pytest.mark.django_db
@@ -20,6 +20,7 @@ def stocked(masterdata):
     post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=1,
         movements=[
             Movement(

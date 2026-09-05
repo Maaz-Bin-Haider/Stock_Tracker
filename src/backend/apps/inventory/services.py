@@ -13,7 +13,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Bucket, StockBalance, StockLedgerEntry
+from .models import Bucket, SourceType, StockBalance, StockLedgerEntry
 
 TWO_PLACES = Decimal("0.01")
 
@@ -78,6 +78,7 @@ def post_event(
     *,
     txn_type,
     source_module,
+    source_type,
     source_id,
     movements,
     txn_at=None,
@@ -93,6 +94,11 @@ def post_event(
     movements = list(movements)
     if not movements:
         raise PostingError("post_event called with no movements.")
+    if source_type not in SourceType.values:
+        # Without this the row could not be resolved back to one record:
+        # source_module owns several record types and reversal txn_types are
+        # shared between them.
+        raise PostingError(f"Unknown source_type {source_type!r}.")
     txn_at = txn_at or timezone.now()
 
     with transaction.atomic():
@@ -121,6 +127,7 @@ def post_event(
                     txn_at=txn_at,
                     txn_type=txn_type,
                     source_module=source_module,
+                    source_type=source_type,
                     source_id=source_id,
                     source_line_id=move.source_line_id,
                     reversal_of=move.reversal_of,

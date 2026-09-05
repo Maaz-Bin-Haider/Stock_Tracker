@@ -23,7 +23,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
-from apps.inventory.models import Bucket, StockBalance, StockLedgerEntry, TxnType
+from apps.inventory.models import Bucket, SourceType, StockBalance, StockLedgerEntry, TxnType
 from apps.inventory.services import Movement, post_event
 
 from .models import Sale, SaleLine
@@ -157,6 +157,7 @@ def create_sale(*, header: dict, lines: list[dict], user, confirm_negative=False
     post_event(
         txn_type=TxnType.SALE,
         source_module=MODULE,
+        source_type=SourceType.SALE,
         source_id=sale.pk,
         movements=movements,
         created_by=user,
@@ -258,6 +259,7 @@ def update_sale(
         post_event(
             txn_type=TxnType.EDIT_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.SALE,
             source_id=sale.pk,
             movements=movements,
             created_by=user,
@@ -299,6 +301,7 @@ def soft_delete_sale(*, sale: Sale, user) -> None:
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.SALE,
             source_id=sale.pk,
             movements=movements,
             created_by=user,

@@ -455,6 +455,8 @@ Every stock-changing operation creates ledger entries:
 - transaction date/time
 - transaction type
 - source module
+- source record type (which record the source record ID refers to — a module owns
+  several, so the ID alone is not unique)
 - source record ID
 - source line ID
 - product

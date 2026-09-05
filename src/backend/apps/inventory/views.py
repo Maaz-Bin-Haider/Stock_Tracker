@@ -24,7 +24,7 @@ class StockLedgerViewSet(viewsets.ReadOnlyModelViewSet):
         "product", "location", "related_location", "created_by"
     )
     serializer_class = StockLedgerEntrySerializer
-    filterset_fields = ["product", "location", "bucket", "txn_type", "source_module"]
+    filterset_fields = ["product", "location", "bucket", "txn_type", "source_module", "source_type"]
     search_fields = ["product__name", "notes", "source_module"]
     ordering_fields = ["txn_at", "id"]
 

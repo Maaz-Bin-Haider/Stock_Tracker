@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from apps.inventory.models import Bucket, StockBalance, StockLedgerEntry, TxnType
+from apps.inventory.models import Bucket, SourceType, StockBalance, StockLedgerEntry, TxnType
 from apps.inventory.services import (
     Movement,
     NegativeStockError,
@@ -39,6 +39,7 @@ def test_post_event_writes_ledger_and_balance(masterdata):
     posted = post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=1,
         movements=[
             Movement(
@@ -67,7 +68,10 @@ def test_negative_physical_requires_confirmation(masterdata):
     )
     with pytest.raises(NegativeStockError):
         post_event(
-            txn_type=TxnType.ADJUSTMENT, source_module="tests", source_id=2, movements=[move]
+            txn_type=TxnType.ADJUSTMENT, source_module="tests",
+            source_type=SourceType.STOCK_ADJUSTMENT,
+            source_id=2,
+            movements=[move],
         )
     # Nothing was written (SRS §7.3: all-or-nothing).
     assert StockLedgerEntry.objects.count() == 0
@@ -76,6 +80,7 @@ def test_negative_physical_requires_confirmation(masterdata):
     post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=2,
         movements=[move],
         confirm_negative=True,
@@ -90,6 +95,7 @@ def test_reversal_movements_exactly_undo(masterdata):
     posted = post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=3,
         movements=[
             Movement(
@@ -105,6 +111,7 @@ def test_reversal_movements_exactly_undo(masterdata):
     post_event(
         txn_type=TxnType.DELETE_REVERSAL,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=3,
         movements=reversal_movements(posted.entries),
     )
@@ -120,6 +127,7 @@ def test_rebuild_detects_and_fixes_drift(masterdata):
     post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module="tests",
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=4,
         movements=[
             Movement(

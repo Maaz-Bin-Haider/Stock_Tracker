@@ -118,7 +118,55 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-09-05 (latest) — searchable dropdowns across the whole system
+### 2026-09-05 (latest) — ledger rows now name the record they came from
+
+- Fixed the stock ledger's traceability address. `(source_module, source_id)`
+  never identified one record: a module owns several record types and each table
+  numbers from 1, so `purchases#3` matched purchase 3, collection 3 **and**
+  refund 3. In the live production database **263 of 263 purchase ids also exist
+  as collection ids** — the ambiguity was near-total, not a corner case.
+- `txn_type` separated most rows but not the reversals: deleting a purchase, a
+  collection or a refund all post DELETE_REVERSAL in the purchases module, so
+  those 13 production rows were genuinely unaddressable, as were 4 shipment ones.
+- Added `StockLedgerEntry.source_type` (`SourceType`: PURCHASE,
+  PURCHASE_COLLECTION, PURCHASE_REFUND, SHIPMENT, SHIPMENT_RECEIPT, SALE,
+  STOCK_ADJUSTMENT) with an index on `(source_type, source_id)`. `source_module`
+  keeps its meaning — the owning app, which drives the ledger report's filter.
+- `post_event` now requires a valid `source_type` and refuses the write
+  otherwise. The ledger is append-only, so an untraceable row could never be
+  repaired in place; it is rejected at the door instead.
+- The three lookups that leaned on `txn_type` to disambiguate (collection delete,
+  refund delete, receipt delete) now address the record directly, and the Stock
+  Ledger Report's reference column reads `purchase#3` / `purchase_collection#3`
+  instead of the ambiguous `purchases#3`.
+- Migration `inventory/0003` backfills existing rows deterministically rather
+  than guessing: every txn_type but the reversals names one record type;
+  EDIT_REVERSAL is unique per module; DELETE_REVERSAL is resolved by how the
+  reversal was built (a purchase delete computes movements from remainders so
+  `reversal_of` is NULL, while collection/refund deletes reverse their own rows;
+  a shipment delete's group includes a reversal of a SHIPMENT_OUT row, a receipt
+  delete's does not). The migration **raises rather than completing** if any row
+  is left unresolved, so a wrong value cannot reach the source of truth.
+- **Validated against a restored copy of the real production database**, not just
+  the test fixtures: all 874 rows backfilled with zero blanks, the 17 previously
+  ambiguous rows resolved as predicted, every `(source_type, source_id)` pair
+  resolves to a record that exists, `rebuild_stock_balances` still reconciles,
+  and the migration rolls back and re-applies cleanly.
+- Added `tests/backend/test_ledger_source.py` (6 tests), including one asserting
+  the id collision itself so the others cannot start passing for the wrong reason.
+- Files: `apps/inventory/{models,services,serializers,views,adjustments}.py`,
+  `apps/inventory/migrations/0003_stockledgerentry_source_type.py`,
+  `apps/{purchases,shipments,sales}/services.py`, `apps/reports/builders.py`,
+  `tests/backend/{test_ledger_source,test_inventory,test_stock_api}.py`,
+  `TECHNICAL_ARCHITECTURE.md` §5.1/§5.4, `SYSTEM_SPEC.md` §14,
+  `SYSTEM_DIAGRAMS.md` ER, and this file.
+- Validation: 218 backend tests pass (6 new), Ruff clean.
+- **Not deployed.** This is the first change in this batch that alters the
+  source-of-truth schema, so it needs a deliberate window: pause users, take a
+  backup pair, deploy, and confirm `verify-ec2.sh` plus a ledger reconciliation.
+  Rollback is `migrate inventory 0002`, which was tested on the production copy.
+
+### 2026-09-05 — searchable dropdowns across the whole system
 
 - Fixed every choice control being effectively unsearchable. All 22 of them were
   native `<select>` elements, whose browser type-ahead buffer expires after about

@@ -25,7 +25,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
-from apps.inventory.models import Bucket, StockLedgerEntry, TxnType
+from apps.inventory.models import Bucket, SourceType, StockLedgerEntry, TxnType
 from apps.inventory.services import Movement, post_event
 from apps.masterdata.models import Location
 
@@ -186,6 +186,7 @@ def create_purchase(*, header: dict, lines: list[dict], user) -> Purchase:
     post_event(
         txn_type=TxnType.PURCHASE_ENTRY,
         source_module=MODULE,
+        source_type=SourceType.PURCHASE,
         source_id=purchase.pk,
         movements=movements,
         created_by=user,
@@ -285,6 +286,7 @@ def collect_purchase(
     post_event(
         txn_type=TxnType.PURCHASE_COLLECTION,
         source_module=MODULE,
+        source_type=SourceType.PURCHASE_COLLECTION,
         source_id=collection.pk,
         movements=movements,
         created_by=user,
@@ -348,6 +350,7 @@ def update_purchase(*, purchase: Purchase, header: dict, lines: list[dict], user
         post_event(
             txn_type=TxnType.EDIT_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.PURCHASE,
             source_id=purchase.pk,
             movements=movements,
             created_by=user,
@@ -536,6 +539,7 @@ def soft_delete_purchase(*, purchase: Purchase, user, confirm_negative=False) ->
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.PURCHASE,
             source_id=purchase.pk,
             movements=movements,
             created_by=user,
@@ -561,9 +565,7 @@ def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=
     before = snapshot_collection(collection)
 
     entries = StockLedgerEntry.objects.filter(
-        source_module=MODULE,
-        txn_type=TxnType.PURCHASE_COLLECTION,
-        source_id=collection.pk,
+        source_type=SourceType.PURCHASE_COLLECTION, source_id=collection.pk
     )
     from apps.inventory.services import reversal_movements
 
@@ -578,6 +580,7 @@ def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.PURCHASE_COLLECTION,
             source_id=collection.pk,
             movements=movements,
             created_by=user,
@@ -711,6 +714,7 @@ def create_refund(
     post_event(
         txn_type=TxnType.PURCHASE_REFUND,
         source_module=MODULE,
+        source_type=SourceType.PURCHASE_REFUND,
         source_id=refund.pk,
         movements=movements,
         created_by=user,
@@ -735,9 +739,7 @@ def delete_refund(*, refund: PurchaseRefund, user, confirm_negative=False) -> No
     before = snapshot_refund(refund)
 
     entries = StockLedgerEntry.objects.filter(
-        source_module=MODULE,
-        txn_type=TxnType.PURCHASE_REFUND,
-        source_id=refund.pk,
+        source_type=SourceType.PURCHASE_REFUND, source_id=refund.pk
     )
     from apps.inventory.services import reversal_movements
 
@@ -752,6 +754,7 @@ def delete_refund(*, refund: PurchaseRefund, user, confirm_negative=False) -> No
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.PURCHASE_REFUND,
             source_id=refund.pk,
             movements=movements,
             created_by=user,

@@ -14,6 +14,28 @@ class Bucket(models.TextChoices):
     IN_TRANSIT = "IN_TRANSIT", "In transit"
 
 
+class SourceType(models.TextChoices):
+    """Which business record a ledger row came from.
+
+    ``source_module`` alone cannot say: one module owns several record types,
+    so "purchases#3" may mean purchase 3, collection 3 or refund 3 — three
+    different records that all exist. ``txn_type`` disambiguates most rows but
+    not reversals, because deleting a purchase, a collection or a refund all
+    post DELETE_REVERSAL in the purchases module.
+
+    ``(source_type, source_id)`` addresses the originating record exactly, which
+    is what the ledger's traceability promise requires (SRS §8.1/§8.2).
+    """
+
+    PURCHASE = "PURCHASE", "Purchase invoice"
+    PURCHASE_COLLECTION = "PURCHASE_COLLECTION", "Purchase collection"
+    PURCHASE_REFUND = "PURCHASE_REFUND", "Purchase refund/cancellation"
+    SHIPMENT = "SHIPMENT", "Shipment"
+    SHIPMENT_RECEIPT = "SHIPMENT_RECEIPT", "Shipment receipt"
+    SALE = "SALE", "Sale"
+    STOCK_ADJUSTMENT = "STOCK_ADJUSTMENT", "Stock adjustment"
+
+
 class TxnType(models.TextChoices):
     """Business events that post ledger entries (TECHNICAL_ARCHITECTURE §5.2)."""
 
@@ -39,6 +61,10 @@ class StockLedgerEntry(CompanyScopedModel):
     txn_at = models.DateTimeField(db_index=True)
     txn_type = models.CharField(max_length=32, choices=TxnType.choices)
     source_module = models.CharField(max_length=64)
+    # The record type source_id points at. source_module is the owning app and
+    # stays coarse (it drives the ledger report's module filter); source_type is
+    # what makes source_id resolvable to exactly one record.
+    source_type = models.CharField(max_length=32, choices=SourceType.choices)
     source_id = models.BigIntegerField()
     source_line_id = models.BigIntegerField(null=True, blank=True)
     reversal_of = models.ForeignKey(
@@ -76,6 +102,7 @@ class StockLedgerEntry(CompanyScopedModel):
         indexes = [
             models.Index(fields=["product", "location", "bucket"]),
             models.Index(fields=["source_module", "source_id"]),
+            models.Index(fields=["source_type", "source_id"]),
             models.Index(fields=["txn_type", "txn_at"]),
         ]
         verbose_name_plural = "stock ledger entries"

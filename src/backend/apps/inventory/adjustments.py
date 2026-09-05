@@ -18,7 +18,15 @@ from rest_framework.exceptions import ValidationError
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
 
-from .models import AdjustmentType, Bucket, StockAdjustment, StockBalance, StockLedgerEntry, TxnType
+from .models import (
+    AdjustmentType,
+    Bucket,
+    SourceType,
+    StockAdjustment,
+    StockBalance,
+    StockLedgerEntry,
+    TxnType,
+)
 from .services import Movement, post_event
 
 TWO_PLACES = Decimal("0.01")
@@ -49,7 +57,7 @@ def _carrying_share(product, location, quantity: Decimal, *, adding: bool) -> De
 def _net_posted(adjustment: StockAdjustment) -> tuple[Decimal, Decimal]:
     """Net (qty, aed) into PHYSICAL this adjustment has posted (signed)."""
     sums = StockLedgerEntry.objects.filter(
-        source_module=MODULE, source_id=adjustment.pk, bucket=Bucket.PHYSICAL
+        source_type=SourceType.STOCK_ADJUSTMENT, source_id=adjustment.pk, bucket=Bucket.PHYSICAL
     ).aggregate(
         qty=Sum(F("qty_in") - F("qty_out")),
         aed=Sum(
@@ -108,6 +116,7 @@ def create_adjustment(*, data: dict, user, confirm_negative=False) -> StockAdjus
     post_event(
         txn_type=TxnType.ADJUSTMENT,
         source_module=MODULE,
+        source_type=SourceType.STOCK_ADJUSTMENT,
         source_id=adjustment.pk,
         movements=[_adjustment_movement(adjustment)],
         created_by=user,
@@ -149,6 +158,7 @@ def update_adjustment(
         post_event(
             txn_type=TxnType.EDIT_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.STOCK_ADJUSTMENT,
             source_id=adjustment.pk,
             movements=movements,
             created_by=user,
@@ -183,6 +193,7 @@ def soft_delete_adjustment(
         post_event(
             txn_type=TxnType.DELETE_REVERSAL,
             source_module=MODULE,
+            source_type=SourceType.STOCK_ADJUSTMENT,
             source_id=adjustment.pk,
             movements=[reversal],
             created_by=user,

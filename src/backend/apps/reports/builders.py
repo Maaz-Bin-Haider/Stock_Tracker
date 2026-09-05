@@ -922,7 +922,9 @@ def build_stock_ledger_report(filters, is_admin) -> ReportResult:
                 "txn_at": entry.txn_at,
                 "txn_type": entry.get_txn_type_display(),
                 "source_module": entry.source_module,
-                "reference": f"{entry.source_module}#{entry.source_id}",
+                # source_type, not source_module: "purchases#3" could mean the
+                # purchase, its collection or its refund.
+                "reference": f"{entry.source_type.lower()}#{entry.source_id}",
                 "product": str(entry.product),
                 "location": entry.location.name,
                 "qty_in": entry.qty_in,

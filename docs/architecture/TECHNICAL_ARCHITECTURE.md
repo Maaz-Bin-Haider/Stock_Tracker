@@ -99,7 +99,10 @@ Append-only. Rows are never updated or deleted — corrections are new reversal 
 ```text
 stock_ledger
 ├── id, txn_at, txn_type            # txn_type: enum below
-├── source_module, source_id, source_line_id   # traceability to the business record
+├── source_module, source_type, source_id, source_line_id   # traceability to the business record
+│                                   # source_type names WHICH record source_id is:
+│                                   # one module owns several (a purchase, its
+│                                   # collections and its refunds all number from 1)
 ├── reversal_of_id                  # FK to the ledger row being reversed (nullable)
 ├── product_id, location_id
 ├── bucket                          # PHYSICAL | PENDING | IN_TRANSIT
@@ -154,7 +157,9 @@ All writes flow through one narrow API in `inventory/services.py`:
 ```python
 post_event(
     txn_type=...,            # enum from 5.2
-    source=record,           # business record (purchase line, shipment receipt, ...)
+    source_module=...,       # owning app, e.g. "purchases"
+    source_type=...,         # SourceType: which record source_id names
+    source_id=record.pk,     # business record (purchase, collection, receipt, ...)
     movements=[Movement(product, location, bucket, qty_in|qty_out, aed=..., gst=...)],
 )  # inside transaction.atomic(); writes ledger rows, locks+updates balances, writes audit
 ```
@@ -164,6 +169,7 @@ Rules enforced here, nowhere else:
 - Runs inside `transaction.atomic()` together with the business-record write — partial updates are impossible (SRS §7.3).
 - Validates refundable/collectable/receivable quantities against current state before posting.
 - Negative PHYSICAL stock on sale/shipment is allowed only when the API call carries an explicit `confirm_negative=true` flag (the UI shows the confirmation dialog; the API enforces it).
+- A valid `source_type` is required. The ledger is append-only, so a row that cannot be traced back to one record could never be repaired in place — it is refused at the door instead.
 - Every post writes the matching audit entry in the same transaction.
 
 ## 6. API Design (Django REST Framework)
