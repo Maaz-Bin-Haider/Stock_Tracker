@@ -158,13 +158,32 @@ If a change affects requirements, workflows, permissions, entities, database des
   first. They now set the sequence explicitly.
 - Validation: 227 backend tests (18 new across GST rates and the form), 23
   frontend tests, Ruff, ESLint, TypeScript all clean.
-- **Open — historical data, needs a decision:** 48 Perth lines (dates
-  2026-07-09 → 2026-09-07, all entered 2026-09-02 → 2026-09-07) carry GST
-  computed the old way at the temporary 11% rate: **AED 15,388.25 recorded
-  against AED 12,717.43 correct**, overstating GST by **AED 2,670.82**.
-  Repairing them means recomputing frozen values on lines that already posted
-  ledger rows, so it must go through the services rather than an UPDATE, and
-  should be rehearsed on a restored production copy first.
+- **Deployed 2026-09-07 and historical data repaired.** Backup pair
+  `20260907-140801` taken and validated on the Mac first. The repair was
+  rehearsed on a restored copy of that backup before production, which is how
+  two extra problems were caught:
+  - **51 lines needed repair, not 48.** Three Melbourne lines entered at 13:40 —
+    after the analysis, before the deploy — carried the correct 10% rate but the
+    old exclusive amount. The repair now targets any line whose stored GST does
+    not match the inclusive computation, rather than the 11% rate alone, and is
+    idempotent. GST across those lines: **AED 19,925.96 → 16,842.63**. Stock
+    value unchanged at AED 185,270.22, and the ledger still reconciles.
+  - Migration 0003 hand-wrote an index name Django would not derive, leaving a
+    standing "unmade migrations" warning. Migration 0004 renames it.
+  - Every repaired line carries an audit row with before/after values.
+- Rates set to the statutory ones — 10% AU, 15% NZ — and the Melbourne/Perth end
+  dates lifted, so no location is blocked on any future date.
+- **Operational hazard found during the deploy, now in the runbook §14:** nginx
+  resolves `backend`/`frontend` once at config load. When only application code
+  changes, nginx is not recreated, keeps the old container addresses and returns
+  **502 for every request**. It briefly did. The update procedure now restarts
+  nginx explicitly, and records that code is baked into images so a migration is
+  invisible to a running container until `--build`.
+- Note for operators: changing a rate in Settings never alters existing
+  invoices — values are frozen at entry (ADR 7). It applies to invoices entered
+  afterwards, chosen by purchase date. The one exception is editing a line's
+  quantity or pricing, which re-freezes that line from the current formula at its
+  own stored rate.
 
 ### 2026-09-05 — ledger rows now name the record they came from
 

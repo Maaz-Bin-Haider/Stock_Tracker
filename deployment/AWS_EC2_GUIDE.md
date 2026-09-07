@@ -382,10 +382,23 @@ run verification. A restore overwrites current production data.
    cd /home/ubuntu/Stock_Tracker
    docker compose -f deployment/docker-compose.ec2.yml \
      --env-file deployment/.env.ec2 up -d --build
+   docker compose -f deployment/docker-compose.ec2.yml \
+     --env-file deployment/.env.ec2 restart nginx
    scripts/verify-ec2.sh
    ```
 
-5. Complete a role-sensitive smoke test before users resume.
+   The nginx restart is not optional. nginx resolves `backend` and `frontend`
+   once, when it loads its configuration. Recreating those containers gives them
+   new addresses, and if nginx itself was not recreated it keeps proxying to the
+   old ones — every request returns **502** until it is restarted. This bites
+   exactly when the compose file is unchanged and only application code moved.
+
+5. Application code is baked into the images, not mounted. A file transferred to
+   the host is invisible to a running container until `--build` recreates it, so
+   never run `manage.py migrate` before the rebuild and expect a new migration to
+   be found.
+
+6. Complete a role-sensitive smoke test before users resume.
 
 ## 15. Recovery if the instance fails
 
