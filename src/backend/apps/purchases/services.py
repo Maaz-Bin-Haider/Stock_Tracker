@@ -47,12 +47,30 @@ def _money(value) -> Decimal:
     return Decimal(value).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
 
+def gst_component(gross: Decimal, rate_percent: Decimal) -> Decimal:
+    """The GST contained in a GST-inclusive amount.
+
+    Supplier prices are entered GST-inclusive (confirmed with the client
+    2026-09-07), so the tax is the share already inside the price —
+    ``gross x r / (100 + r)`` — not ``gross x r / 100`` added on top of it. At
+    10% that is a eleventh of the price, the Australian "divide by 11" rule.
+
+    Getting this backwards overstated GST by the rate itself: 10% of the price
+    instead of 9.09% of it.
+    """
+    if not rate_percent:
+        return Decimal("0.00")
+    return _money(gross * rate_percent / (100 + rate_percent))
+
+
 def freeze_line_values(line: PurchaseLine) -> None:
     """Compute and freeze AED/GST values at entry time (ADR 7, FR-092)."""
     line.unit_price_aed = _money(line.unit_price * line.exchange_rate)
+    # The stock value stays the full price the supplier charged: the client
+    # does not reclaim GST, so it is part of what the goods cost.
     line.total_value_aed = _money(line.quantity * line.unit_price * line.exchange_rate)
     gross = line.quantity * line.unit_price
-    line.gst_amount = _money(gross * line.gst_rate_percent / 100)
+    line.gst_amount = gst_component(gross, line.gst_rate_percent)
     line.gst_amount_aed = _money(line.gst_amount * line.exchange_rate)
 
 
@@ -648,7 +666,9 @@ def create_refund(
         # Original-line-rate reversal values, frozen for reporting.
         value_reversal = _money(quantity * line.unit_price)
         value_reversal_aed = _money(value_reversal * line.exchange_rate)
-        gst_reversal = _money(quantity * line.unit_price * line.gst_rate_percent / 100)
+        # Same basis as entry, or a refund would return more GST than the
+        # purchase ever recorded.
+        gst_reversal = gst_component(value_reversal, line.gst_rate_percent)
         gst_reversal_aed = _money(gst_reversal * line.exchange_rate)
 
         if source == RefundSource.PENDING:

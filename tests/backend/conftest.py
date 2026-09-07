@@ -93,8 +93,9 @@ def masterdata(db):
 def report_world(masterdata, auth_client):
     """A small business history exercising every report source (M6 tests):
 
-    - P1 Sydney: 10 phone @ 100 AUD (fx 2.4 → 240 AED, GST 10%), 6 collected,
-      2 pending cancelled, 1 received refunded → pending 2 (480 AED / 48 GST),
+    - P1 Sydney: 10 phone @ 100 AUD GST-inclusive (fx 2.4 → 240 AED, GST 10%
+      i.e. 1/11 of the price), 6 collected, 2 pending cancelled, 1 received
+      refunded → pending 2 (480 AED / 43.64 GST),
       Sydney physical 5 (1200 AED) before shipping.
     - P2 Dubai: 20 laptop @ 50 AED fully collected → 20 (1000 AED).
     - S1 Sydney→Dubai: 3 phone shipped, 2 received → Sydney physical 2,

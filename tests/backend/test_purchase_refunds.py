@@ -82,8 +82,8 @@ class TestPendingCancellation:
         # Original line rate: 30 × 1500 AUD = 45000 AUD → 108000 AED; GST 10%.
         assert refund_line["value_reversal"] == "45000.00"
         assert refund_line["value_reversal_aed"] == "108000.00"
-        assert refund_line["gst_reversal"] == "4500.00"
-        assert refund_line["gst_reversal_aed"] == "10800.00"
+        assert refund_line["gst_reversal"] == "4090.91"  # 45000 x 10/110
+        assert refund_line["gst_reversal_aed"] == "9818.18"  # 4090.91 x 2.4
         assert response.data["refund_no"].startswith("RF-")
 
         # Pending empties exactly: qty 100 − 70 collected − 30 cancelled = 0.
@@ -99,7 +99,7 @@ class TestPendingCancellation:
         entry = StockLedgerEntry.objects.get(txn_type=TxnType.PURCHASE_REFUND)
         assert entry.bucket == Bucket.PENDING
         assert entry.qty_out == Decimal("30.00")
-        assert entry.gst_value == Decimal("10800.00")
+        assert entry.gst_value == Decimal("9818.18")
 
         purchase = Purchase.objects.get(pk=invoice["id"])
         line = purchase.lines.get()
@@ -169,7 +169,7 @@ class TestReceivedRefund:
         assert response.status_code == 201, response.data
         refund_line = response.data["lines"][0]
         assert refund_line["value_reversal_aed"] == "72000.00"  # 20 × 3600
-        assert refund_line["gst_reversal_aed"] == "7200.00"
+        assert refund_line["gst_reversal_aed"] == "6545.45"  # 30000 x 10/110 x 2.4
 
         assert balance(masterdata.phone, masterdata.sydney, Bucket.PHYSICAL) == (
             Decimal("50.00"),

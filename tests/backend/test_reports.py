@@ -105,7 +105,7 @@ class TestPurchaseSideReports:
         assert row["pending_qty"] == Decimal("2.00")
         assert row["cancelled_qty"] == Decimal("2.00")
         assert row["aed_value_pending"] == Decimal("480.00")
-        assert row["gst_pending"] == Decimal("48.00")
+        assert row["gst_pending"] == Decimal("43.64")  # GST inside the pending value
 
     def test_pending_purchase_by_location(self, report_world):
         response = report_world.admin_client.get(
@@ -149,20 +149,21 @@ class TestPurchaseSideReports:
         row = only_row(response, invoice_no="INV-P1")
         assert row["net_qty"] == Decimal("7.00")
         assert row["gst_rate_percent"] == Decimal("10.00")
-        assert row["gst_amount"] == Decimal("100.00")  # AUD, frozen at entry
-        assert row["gst_reversal"] == Decimal("30.00")  # 2 + 1 units @ 10 AUD
-        assert row["net_gst"] == Decimal("70.00")
+        # 1000 AUD inclusive holds 1000 x 10/110 = 90.91 AUD of GST, frozen at entry.
+        assert row["gst_amount"] == Decimal("90.91")  # AUD, frozen at entry
+        assert row["gst_reversal"] == Decimal("27.27")  # GST inside 3 units @ 100 AUD
+        assert row["net_gst"] == Decimal("63.64")  # 90.91 - 27.27
         assert "RF-" in row["refund_reference"]
         # Dubai purchase has no GST region and no GST → not in the report.
         assert {r["invoice_no"] for r in rows(response)} == {"INV-P1"}
-        assert response.data["totals"]["Net GST (AED)"] == Decimal("168.00")
+        assert response.data["totals"]["Net GST (AED)"] == Decimal("152.73")  # 63.64 x 2.4
 
     def test_refund_cancellation_report(self, report_world):
         response = report_world.admin_client.get(f"{REPORTS}refund-cancellation-report/")
         assert len(rows(response)) == 2
         pending = only_row(response, pending_qty_affected=Decimal("2.00"))
         assert pending["value_reversal_aed"] == Decimal("480.00")
-        assert pending["gst_reversal_aed"] == Decimal("48.00")
+        assert pending["gst_reversal_aed"] == Decimal("43.63")
         received = only_row(response, received_qty_affected=Decimal("1.00"))
         assert received["value_reversal_aed"] == Decimal("240.00")
         assert response.data["totals"]["AED reversed"] == Decimal("720.00")

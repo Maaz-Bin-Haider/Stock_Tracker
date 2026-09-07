@@ -167,9 +167,9 @@ def test_an_explicit_rate_on_the_line_overrides_settings(masterdata, auth_client
     assert response.status_code == 201, response.data
     line = response.data["lines"][0]
     assert Decimal(line["gst_rate_percent"]) == Decimal("7.50")
-    # 2 x 100 AUD at 7.5% = 15 AUD, x 2.4 = 36 AED.
-    assert Decimal(line["gst_amount"]) == Decimal("15.00")
-    assert Decimal(line["gst_amount_aed"]) == Decimal("36.00")
+    # 200 AUD inclusive at 7.5% holds 200 x 7.5/107.5 = 13.95 AUD, x 2.4 = 33.48 AED.
+    assert Decimal(line["gst_amount"]) == Decimal("13.95")
+    assert Decimal(line["gst_amount_aed"]) == Decimal("33.48")
 
 
 def test_a_non_gst_location_records_no_gst(masterdata, auth_client):

@@ -29,7 +29,7 @@ class TestLiveDashboard:
         assert cards["total_pending"] == Decimal("2.00")
         assert cards["total_in_transit"] == Decimal("1.00")
         # GST: 240 AED at entry − 48 (pending cancel) − 24 (received refund).
-        assert cards["gst_total_aed"] == Decimal("168.00")
+        assert cards["gst_total_aed"] == Decimal("152.73")
         assert cards["todays_sales"]["quantity"] == Decimal("2.00")
         assert cards["todays_sales"]["lines"] == 1
         assert response.data["as_of"] is None
@@ -73,7 +73,7 @@ class TestPastSnapshot:
         assert cards["total_pending"] == Decimal("2.00")
         assert cards["total_in_transit"] == Decimal("0.00")
         # Refunds already existed at the cutoff, so GST is already net.
-        assert cards["gst_total_aed"] == Decimal("168.00")
+        assert cards["gst_total_aed"] == Decimal("152.73")
         assert response.data["as_of"] is not None
 
         sydney = location_row(response.data, "Sydney")

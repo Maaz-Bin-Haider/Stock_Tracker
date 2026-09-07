@@ -70,8 +70,9 @@ class TestPurchaseEntry:
         assert phone_line["unit_price_aed"] == "3600.00"
         assert phone_line["total_value_aed"] == "360000.00"
         assert phone_line["gst_rate_percent"] == "10.00"
-        assert phone_line["gst_amount"] == "15000.00"  # AUD
-        assert phone_line["gst_amount_aed"] == "36000.00"
+        # 150,000 AUD is GST-inclusive, so the GST inside it is 150000 x 10/110.
+        assert phone_line["gst_amount"] == "13636.36"  # AUD
+        assert phone_line["gst_amount_aed"] == "32727.26"  # 13636.36 x 2.4
 
         # Mapping row: purchase line entered → +PENDING @ purchase location.
         entries = StockLedgerEntry.objects.filter(txn_type=TxnType.PURCHASE_ENTRY)
@@ -442,7 +443,7 @@ class TestPurchaseEditDelete:
         totals = response.data["totals"]
         assert totals["total_quantity"] == "150.00"
         assert totals["total_value_aed"] == "600000.00"
-        assert totals["total_gst_aed"] == "60000.00"
+        assert totals["total_gst_aed"] == "54545.44"  # GST inside the inclusive price
 
 
 class TestPurchasePermissions:
