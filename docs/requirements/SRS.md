@@ -673,6 +673,14 @@ GST shall support Australia and New Zealand purchases and be expandable to other
 
 GST shall be calculated from the purchase line GST rate and purchase value.
 
+Purchase prices are entered **GST-inclusive** (confirmed 2026-09-07). The GST
+figure is therefore the share contained in the price, `value x rate / (100 + rate)`
+— at 10% one eleventh of the price — not an amount added on top of it.
+
+Stock value remains the full price paid, GST included: the GST is not reclaimed,
+so it is part of what the goods cost. GST is reported, never deducted from
+inventory value.
+
 #### FR-093 GST Refund Reversal
 
 GST shall reduce/reverse when a purchase refund/cancellation is recorded.

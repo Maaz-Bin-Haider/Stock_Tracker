@@ -118,7 +118,55 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-09-05 (latest) — ledger rows now name the record they came from
+### 2026-09-07 (latest) — GST calculated from GST-inclusive prices, and cleared dates that stick
+
+- **GST was added on top of the price instead of taken out of it.**
+  `freeze_line_values` computed `gross x rate/100`, treating the unit price as
+  GST-exclusive, while buyers enter GST-inclusive supplier prices. At 10% that
+  recorded 10% of the price as GST where the true component is 9.09% of it.
+- The configured rates were the tell: New Zealand had been set to **13.04%**
+  (15/115 to four figures — the factor for extracting 15% from an inclusive
+  price) and Australia to **11%** (the "divide by 11" rule, divisor typed into a
+  percent field). Both were operators working around a system that added tax.
+- Root cause is a requirements gap, not a slip: FR-092 said only that GST is
+  calculated from the line's rate and purchase value, and **no document ever
+  decided inclusive versus exclusive**. The implementation chose one reading,
+  the business worked to the other, and the tests encoded the implementation's
+  choice so they agreed with it.
+- Confirmed with the client 2026-09-07: prices are GST-inclusive, the real rates
+  are 10% (AU) and 15% (NZ), and **stock is not valued ex-GST** — the GST is not
+  reclaimed, so the full price paid stays the inventory cost. Only the tax
+  figure changes, which keeps the ledger and stock valuation entirely out of it.
+- Added `gst_component()` in `apps/purchases/services.py`, used by both entry
+  and refund reversal so the two cannot drift and a refund can never return more
+  GST than the purchase recorded. Recorded the decision in SRS FR-092 and
+  SYSTEM_SPEC §16 so it cannot be lost again.
+- **Also fixed: a cleared date never cleared.** The master-data form saves with
+  PATCH, where an omitted key means "leave alone", and it dropped empty optional
+  date/choice fields instead of sending them. A GST rate's end date could be set
+  but never removed — production shows the attempt twice, a minute apart, as two
+  UPDATEs whose before and after are identical.
+- That was about to stop work: Melbourne and Perth had `effective_to`
+  2026-09-07 with no successor rate, and the resolver refuses a GST region with
+  no applicable rate, so from 2026-09-08 purchase entry at both would have been
+  rejected with no way to lift the date from the UI.
+- Payload rules moved to `src/frontend/lib/resource-form.ts` to be testable,
+  matching `pagination.ts` and `options.ts`; the API contract is pinned both
+  ways in `tests/backend/test_gst_rates.py`.
+- `test_ledger_source`'s id-collision tests turned out to depend on the two pk
+  sequences happening to align — true only until another test created a purchase
+  first. They now set the sequence explicitly.
+- Validation: 227 backend tests (18 new across GST rates and the form), 23
+  frontend tests, Ruff, ESLint, TypeScript all clean.
+- **Open — historical data, needs a decision:** 48 Perth lines (dates
+  2026-07-09 → 2026-09-07, all entered 2026-09-02 → 2026-09-07) carry GST
+  computed the old way at the temporary 11% rate: **AED 15,388.25 recorded
+  against AED 12,717.43 correct**, overstating GST by **AED 2,670.82**.
+  Repairing them means recomputing frozen values on lines that already posted
+  ledger rows, so it must go through the services rather than an UPDATE, and
+  should be rehearsed on a restored production copy first.
+
+### 2026-09-05 — ledger rows now name the record they came from
 
 - Fixed the stock ledger's traceability address. `(source_module, source_id)`
   never identified one record: a module owns several record types and each table

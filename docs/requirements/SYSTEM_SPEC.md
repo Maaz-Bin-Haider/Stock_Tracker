@@ -508,7 +508,14 @@ Shipments do not require currency handling.
 
 - GST is currently needed for Australia and New Zealand purchases.
 - GST setup should support more locations in the future, including USA.
-- GST rates are configurable.
+- GST rates are configurable and are the real statutory rates: 10% for
+  Australia, 15% for New Zealand.
+- **Purchase prices are entered GST-inclusive** (confirmed 2026-09-07). The GST
+  amount is the share inside the price, `value x rate / (100 + rate)`, not an
+  addition to it. Entering a rate adjusted for inclusive pricing (such as 11%
+  or 13.04%) would double-count the adjustment.
+- Stock value keeps the full price paid, GST included; GST is reported but never
+  deducted from inventory value.
 - Purchases must use the relevant active GST rate for the purchase/location/date unless manually selected.
 - Refunds/cancellations must reduce/reverse GST.
 - GST report must reflect refunds/cancellations.
