@@ -10,6 +10,7 @@ all post DELETE_REVERSAL in the purchases module.
 from decimal import Decimal
 
 import pytest
+from django.db import connection
 
 from apps.accounts.models import User
 from apps.inventory.models import SourceType, StockLedgerEntry, TxnType
@@ -31,9 +32,24 @@ MODELS = {
 }
 
 
+def _next_collection_takes_id(target_id):
+    """Make the next collection row take ``target_id``.
+
+    In production both tables number from 1, so a purchase and a collection
+    share an id as a matter of course — 263 of 263 purchases did. Forcing it
+    here states that condition outright instead of depending on the two
+    sequences happening to line up, which is true only for the first records of
+    a run and therefore varies with test order.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT setval(pg_get_serial_sequence('purchases_purchasecollection', 'id'), %s, false)",
+            [target_id],
+        )
+
+
 def _purchase_with_collection(client, world):
-    """One invoice collected at entry, so the purchase and its collection are
-    both the first row of their table and therefore share an id."""
+    """An invoice plus a collection deliberately given the purchase's own id."""
     response = client.post(
         "/api/v1/purchases/",
         {
@@ -47,7 +63,6 @@ def _purchase_with_collection(client, world):
                     "quantity": "10",
                     "unit_price": "100.00",
                     "currency": world.aud.pk,
-                    "collected_qty": "4",
                 }
             ],
         },
@@ -55,12 +70,24 @@ def _purchase_with_collection(client, world):
     )
     assert response.status_code == 201, response.data
     purchase = Purchase.objects.get(pk=response.data["id"])
+
+    _next_collection_takes_id(purchase.pk)
+    collected = client.post(
+        f"/api/v1/purchases/{purchase.pk}/collections/",
+        {
+            "collection_date": "2026-07-02",
+            "location": world.sydney.pk,
+            "lines": [{"purchase_line": response.data["lines"][0]["id"], "quantity": "4"}],
+        },
+        format="json",
+    )
+    assert collected.status_code == 201, collected.data
     return purchase, purchase.collections.get()
 
 
 def test_a_purchase_and_its_collection_really_do_share_an_id(masterdata, auth_client):
-    """The precondition for the bug — worth asserting so it cannot quietly stop
-    being true and leave the tests below passing for the wrong reason."""
+    """The precondition for the bug — asserted so the tests below cannot quietly
+    start passing for the wrong reason."""
     purchase, collection = _purchase_with_collection(auth_client(User.Role.PURCHASE), masterdata)
 
     assert purchase.pk == collection.pk

@@ -6,28 +6,9 @@ import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
 import { api, apiAll, errorMessage } from "@/lib/api";
 import { optionLabel, type ChoiceOption } from "@/lib/options";
+import { buildPayload, type FieldDef, type FieldType, type FormValues } from "@/lib/resource-form";
 
-export type FieldType =
-  | "text"
-  | "number"
-  | "date"
-  | "checkbox"
-  | "password"
-  | "select"
-  | "textarea";
-
-export interface FieldDef {
-  name: string;
-  label: string;
-  type?: FieldType;
-  required?: boolean;
-  /** Static choices (e.g. roles). */
-  options?: { value: string; label: string }[];
-  /** Load choices from a list endpoint (foreign keys). */
-  optionsEndpoint?: string;
-  optionLabelKey?: string;
-  defaultValue?: string | boolean;
-}
+export type { FieldDef, FieldType };
 
 export interface ColumnDef {
   key: string;
@@ -43,8 +24,6 @@ interface ListResponse {
   count: number;
   results: Row[];
 }
-
-type FormValues = Record<string, string | boolean>;
 
 function formatCell(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
@@ -156,19 +135,7 @@ export default function ResourceCrud({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    const payload: Record<string, unknown> = {};
-    for (const field of fields) {
-      const value = values[field.name];
-      if (field.type === "checkbox") {
-        payload[field.name] = Boolean(value);
-        continue;
-      }
-      if (field.type === "password" && value === "") continue;
-      if (value === "" && !field.required) {
-        if (field.type === "date" || field.type === "select") continue;
-      }
-      payload[field.name] = field.optionsEndpoint && value !== "" ? Number(value) : value;
-    }
+    const payload = buildPayload(fields, values);
     try {
       if (editing) {
         await api(`${endpoint}${editing.id}/`, { method: "PATCH", body: payload });
