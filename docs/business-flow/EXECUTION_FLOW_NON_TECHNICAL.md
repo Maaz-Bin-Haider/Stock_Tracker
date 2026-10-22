@@ -131,6 +131,20 @@ If all 50 units of Product B are collected now, then Product B becomes fully col
 
 The user does not manually choose the final status. The system decides it from the quantities.
 
+### Correcting a saved invoice
+
+Open **Edit** to select the correct product, correct unit price, or remove a wrong
+line while keeping the other products. This includes already received stock that
+has not moved further. The system updates stock, value, and GST while preserving
+collection and audit history. Keep at least one line on the invoice.
+
+If a line has dependent sales, shipments (including drafts), refunds/cancellations,
+or adjustments, the editor blocks that line and explains why. Other eligible lines
+can still be corrected. Stock is pooled, so movements of the same product at its
+collection location may also block a line from another invoice. Currency, exchange
+rate, and GST remain fixed after collection. This change was locally verified and deployed to production on 2026-10-22
+after explicit authorization and backup.
+
 ## 8. Purchase Collection Flow
 
 Purchase collection is separate from purchase entry.

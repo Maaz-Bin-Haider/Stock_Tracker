@@ -172,6 +172,39 @@ Rules enforced here, nowhere else:
 - A valid `source_type` is required. The ledger is append-only, so a row that cannot be traced back to one record could never be repaired in place — it is refused at the door instead.
 - Every post writes the matching audit entry in the same transaction.
 
+### 5.5 Received purchase corrections (local implementation 2026-10-22)
+
+`purchases/corrections.py` evaluates per-line eligibility and reverses the affected
+collections' current net ledger contributions, then the purchase pending basis.
+It reposts the corrected product/cost and replays the original collection quantities
+at their original locations. Removal reverses those contributions and soft-deletes
+only the invoice line. Ledger rows and collection business records are retained;
+no schema migration is required. Source type/id/line identify each contribution;
+`reversal_of` links a row where a single matching contribution exists. Aggregated
+reversals retain source identity and explanatory notes.
+
+Collection undo now reverses the source's current net contribution, preventing
+superseded products or costs from reappearing after repeated corrections/removal.
+Grouping net quantities/AED/GST avoids replaying all historical reversals and keeps
+ledger growth linear. Refunds retain the corrected line's frozen basis.
+
+All stock-writing domain services, posting, and balance rebuild acquire the same
+PostgreSQL transaction-scoped advisory lock (`STOCK_WRITE_LOCK`) before business
+validation and costing, then refresh supplied records. Existing balance row locks
+remain. This serializes stock writes for the single-company installation and
+prevents sale/dispatch between eligibility checks and correction postings. It is
+a deliberate throughput tradeoff; finer locks require preserving this ordering
+and the concurrency guarantees. Read-only requests do not take this lock.
+
+Eligibility is conservative because sales/shipments have no purchase-lot linkage:
+later downstream ledger activity for the product at collection locations blocks
+correction, including reversed history. Open draft shipments and active line
+refunds/cancellations also block it. Remaining physical quantity/value must cover
+the reversal. The API exposes `can_correct` and `correction_block_reason`, and
+rechecks the rule inside the write transaction. Currency/fx/GST remain fixed after
+collection. An invoice must retain a line. Production deployment completed on 2026-10-22
+after explicit authorization; see the deployment record for verification evidence.
+
 ## 6. API Design (Django REST Framework)
 
 - URL shape: `/api/v1/<module>/...` — e.g. `/api/v1/purchases/`, `/api/v1/purchases/{id}/refunds/`, `/api/v1/shipments/{id}/receipts/`, `/api/v1/stock/balances/`, `/api/v1/stock/ledger/`.

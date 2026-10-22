@@ -18,7 +18,6 @@ value (FR-119); shipments carry no currency (FR-066).
 
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db import transaction
 from django.db.models import Case, DecimalField, F, Sum, When
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -26,7 +25,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
 from apps.inventory.models import Bucket, SourceType, StockBalance, StockLedgerEntry, TxnType
-from apps.inventory.services import Movement, post_event, reversal_movements
+from apps.inventory.services import Movement, post_event, reversal_movements, stock_transaction
 
 from .models import Shipment, ShipmentLine, ShipmentReceipt, ShipmentReceiptLine
 
@@ -46,7 +45,7 @@ def _validate_lines(lines: list[dict]) -> None:
             raise ValidationError({"quantity": "Shipped quantity must be positive."})
 
 
-@transaction.atomic
+@stock_transaction
 def create_shipment(
     *, header: dict, lines: list[dict], ship=False, user, confirm_negative=False
 ) -> Shipment:
@@ -102,13 +101,14 @@ def _transit_share(line: ShipmentLine, quantity: Decimal) -> Decimal:
     return _money(remaining_aed * quantity / remaining_qty)
 
 
-@transaction.atomic
+@stock_transaction
 def ship_shipment(*, shipment: Shipment, user, confirm_negative=False) -> Shipment:
     """Mark shipped (FR-063): −PHYSICAL @ from-location, +IN_TRANSIT @
     to-location, valued at the source's carrying average cost (§5.3.1).
 
     Negative source stock requires explicit confirmation (FR-083).
     """
+    shipment.refresh_from_db()
     if shipment.is_deleted:
         raise ValidationError({"shipment": "This shipment has been deleted."})
     if shipment.cancelled_at:
@@ -191,11 +191,12 @@ def ship_shipment(*, shipment: Shipment, user, confirm_negative=False) -> Shipme
     return shipment
 
 
-@transaction.atomic
+@stock_transaction
 def update_shipment(*, shipment: Shipment, header: dict, lines: list[dict], user) -> Shipment:
     """Draft shipments are freely editable (nothing is posted yet). Once
     shipped, lines are locked — cancel and re-create to change them; only
     header notes/shipping cost/date may change."""
+    shipment.refresh_from_db()
     if shipment.is_deleted:
         raise ValidationError({"shipment": "This shipment has been deleted."})
     if shipment.cancelled_at:
@@ -273,7 +274,7 @@ def update_shipment(*, shipment: Shipment, header: dict, lines: list[dict], user
     return shipment
 
 
-@transaction.atomic
+@stock_transaction
 def receive_shipment(
     *, shipment: Shipment, receipt_date, lines: list[dict], notes="", user
 ) -> ShipmentReceipt:
@@ -281,6 +282,7 @@ def receive_shipment(
     +PHYSICAL at the destination. Over-receiving is allowed — IN_TRANSIT may
     go negative for the line, which drives the over_received warning
     (FR-084/FR-085, §5.2 note)."""
+    shipment.refresh_from_db()
     if shipment.is_deleted:
         raise ValidationError({"shipment": "This shipment has been deleted."})
     if shipment.cancelled_at:
@@ -351,10 +353,11 @@ def receive_shipment(
     return receipt
 
 
-@transaction.atomic
+@stock_transaction
 def delete_receipt(*, receipt: ShipmentReceipt, user, confirm_negative=False) -> None:
     """Undo a receipt: its ledger entries are reversed (stock returns to
     in-transit) and the receipt is soft-deleted."""
+    receipt.refresh_from_db()
     if receipt.is_deleted:
         raise ValidationError({"receipt": "This receipt is already deleted."})
     before = snapshot_receipt(receipt)
@@ -437,11 +440,12 @@ def _unreceived_movements(shipment: Shipment, notes: str) -> list[Movement]:
     return movements
 
 
-@transaction.atomic
+@stock_transaction
 def cancel_shipment(*, shipment: Shipment, reason="", user) -> Shipment:
     """Cancel a shipment: unreceived in-transit quantities return to source
     physical stock; already-received stock stays at the destination (§5.2).
     Draft shipments simply become cancelled — nothing was posted."""
+    shipment.refresh_from_db()
     if shipment.is_deleted:
         raise ValidationError({"shipment": "This shipment has been deleted."})
     if shipment.cancelled_at:
@@ -481,11 +485,12 @@ def cancel_shipment(*, shipment: Shipment, reason="", user) -> Shipment:
     return shipment
 
 
-@transaction.atomic
+@stock_transaction
 def soft_delete_shipment(*, shipment: Shipment, user, confirm_negative=False) -> None:
     """Soft delete: every ledger row this shipment ever posted (ship, receipts,
     cancellation) is exactly reversed, returning all moved stock and value to
     the source; receipts and lines are soft-deleted with it (§5.2)."""
+    shipment.refresh_from_db()
     if shipment.is_deleted:
         raise ValidationError({"shipment": "This shipment is already deleted."})
     before = snapshot_shipment(shipment)

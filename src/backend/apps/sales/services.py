@@ -16,7 +16,6 @@ confirmation (FR-083).
 
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db import transaction
 from django.db.models import Case, DecimalField, F, Sum, When
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -24,7 +23,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
 from apps.inventory.models import Bucket, SourceType, StockBalance, StockLedgerEntry, TxnType
-from apps.inventory.services import Movement, post_event
+from apps.inventory.services import Movement, post_event, stock_transaction
 
 from .models import Sale, SaleLine
 
@@ -132,7 +131,7 @@ def _reversal_movement(product, line: SaleLine, location, qty: Decimal, aed: Dec
     )
 
 
-@transaction.atomic
+@stock_transaction
 def create_sale(*, header: dict, lines: list[dict], user, confirm_negative=False) -> Sale:
     """Sale entry (FR-072): −PHYSICAL at the sale location, valued at the
     location's carrying average."""
@@ -173,7 +172,7 @@ def create_sale(*, header: dict, lines: list[dict], user, confirm_negative=False
     return sale
 
 
-@transaction.atomic
+@stock_transaction
 def update_sale(
     *, sale: Sale, header: dict, lines: list[dict], user, confirm_negative=False
 ) -> Sale:
@@ -181,6 +180,7 @@ def update_sale(
     fresh rows at the current carrying average (§5.2, FR-081). The location is
     locked after entry — stock already left it; delete and re-enter to move a
     sale. Price/notes edits post nothing (reference only)."""
+    sale.refresh_from_db()
     if sale.is_deleted:
         raise ValidationError({"sale": "This sale has been deleted."})
     before = snapshot_sale(sale)
@@ -276,10 +276,11 @@ def update_sale(
     return sale
 
 
-@transaction.atomic
+@stock_transaction
 def soft_delete_sale(*, sale: Sale, user) -> None:
     """Soft delete: each line's net sold quantity and value return to the
     location's physical stock (§5.2 reversal rows only)."""
+    sale.refresh_from_db()
     if sale.is_deleted:
         raise ValidationError({"sale": "This sale is already deleted."})
     before = snapshot_sale(sale)

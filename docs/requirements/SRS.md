@@ -619,6 +619,19 @@ The stock ledger shall include:
 
 When users edit old purchases, sales, shipments, or adjustments, the system shall recalculate stock from the full ledger automatically.
 
+Saved purchase lines shall permit corrections to product selection and unit price,
+and removal of an erroneous line, including received goods that have not moved
+further. The first implementation shall block dependent lines with a clear reason
+for sales, shipments (including open drafts), refunds/cancellations, or adjustments;
+other eligible lines remain editable. Pooled product/location stock requires
+conservative dependency checks, including reversed historical activity. Currency,
+exchange rate, and GST remain fixed after collection, and at least one invoice line
+must remain. Corrections shall preserve original ledger/audit history and existing
+collection identities, and keep subsequent collection undo/refunds and current
+stock/GST/valuation reports consistent. Eligibility checks and postings shall be
+atomic with concurrent stock writes. Implemented locally and deployed to production on 2026-10-22 after explicit
+authorization, backup, and read-only data verification.
+
 ### 4.13 Negative Stock and Warning Handling
 
 #### FR-082 Negative Stock Allowed With Warning
@@ -744,6 +757,19 @@ PDF reports shall use a lightweight, modern, professional theme.
 #### FR-102 Search and Filter
 
 Every list page shall support advanced, fast search and filters.
+
+The Purchases page shall offer scoped text search (all fields, invoice number,
+product/SKU/specs, supplier, location, and invoice notes), invoice status buttons,
+and combined supplier/location/product/inclusive purchase-date filters. Provide
+Dubai-date shortcuts for today, the last seven dates, and the current month;
+stable sorting by date, invoice number, or supplier; removable filter chips;
+one-action reset; loading/error/empty feedback; and result counts. Historical
+inactive references shall remain selectable for finding older invoices. Search
+shall ignore removed lines and deduplicate matching invoices. Filtering, pagination,
+and quick totals shall use the same complete server-side result set. A product
+match includes all remaining lines of its invoice in the displayed totals.
+Implemented locally and deployed on 2026-10-22 after explicit authorization,
+validated backups, and read-only verification of unchanged business data.
 
 #### FR-103 Quick Totals
 

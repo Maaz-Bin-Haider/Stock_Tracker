@@ -1,5 +1,6 @@
-from django.db.models import DecimalField, Prefetch, Sum
+from django.db.models import DecimalField, FilteredRelation, Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -9,6 +10,7 @@ from apps.accounts.permissions import ModulePermission
 from apps.inventory.services import NegativeStockError
 
 from . import services
+from .filters import PurchaseFilter, PurchaseOrderingFilter, PurchaseSearchFilter
 from .models import (
     Purchase,
     PurchaseCollection,
@@ -45,14 +47,16 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     permission_classes = [ModulePermission]
     serializer_class = PurchaseSerializer
     queryset = Purchase.objects.filter(is_deleted=False)
-    filterset_fields = ["location", "supplier", "purchase_date"]
-    search_fields = ["invoice_no", "notes", "lines__product__name", "supplier__name"]
-    ordering_fields = ["purchase_date", "invoice_no", "created_at"]
+    filter_backends = [DjangoFilterBackend, PurchaseSearchFilter, PurchaseOrderingFilter]
+    filterset_class = PurchaseFilter
+    ordering_fields = ["purchase_date", "invoice_no", "created_at", "supplier__name"]
+    ordering = ["-purchase_date", "-id"]
 
     def get_queryset(self):
         return (
             super()
             .get_queryset()
+            .alias(search_lines=FilteredRelation("lines", condition=Q(lines__is_deleted=False)))
             .select_related("location", "supplier", "created_by")
             .prefetch_related(_line_prefetch())
         )
@@ -88,6 +92,9 @@ class PurchaseViewSet(viewsets.ModelViewSet):
             lines=lines,
             user=self.request.user,
         )
+        # DRF clears the original instance's prefetch after this hook. Return
+        # a fresh active-only relation so removed lines do not reappear in PUT.
+        serializer.instance = self.get_queryset().get(pk=serializer.instance.pk)
 
     def perform_destroy(self, instance):
         confirm = self.request.query_params.get("confirm_negative") == "true"

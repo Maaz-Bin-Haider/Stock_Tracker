@@ -18,7 +18,6 @@ row in one ``transaction.atomic()`` block (SRS §7.3, TECHNICAL_ARCHITECTURE
 
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db import transaction
 from django.db.models import Case, DecimalField, F, Sum, When
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -26,7 +25,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audits.models import AuditLog
 from apps.audits.services import record_audit
 from apps.inventory.models import Bucket, SourceType, StockLedgerEntry, TxnType
-from apps.inventory.services import Movement, post_event
+from apps.inventory.services import Movement, net_reversal_movements, post_event, stock_transaction
 from apps.masterdata.models import Location
 
 from .models import (
@@ -182,7 +181,7 @@ def _physical_share(line: PurchaseLine, location, quantity: Decimal) -> Decimal:
     return _money(remaining_aed * quantity / remaining_qty)
 
 
-@transaction.atomic
+@stock_transaction
 def create_purchase(*, header: dict, lines: list[dict], user) -> Purchase:
     """Create invoice + lines, post +PENDING per line, and immediately collect
     any line quantities entered as already collected (activity diagram 2.2)."""
@@ -231,12 +230,13 @@ def create_purchase(*, header: dict, lines: list[dict], user) -> Purchase:
     return purchase
 
 
-@transaction.atomic
+@stock_transaction
 def collect_purchase(
     *, purchase: Purchase, collection_date, location, lines: list[dict], notes="", user
 ) -> PurchaseCollection:
     """Partial/product-wise collection (FR-040/FR-041): −PENDING at the
     purchase location, +PHYSICAL at the collection location (FR-042)."""
+    purchase.refresh_from_db()
     if purchase.is_deleted:
         raise ValidationError({"purchase": "This purchase has been deleted."})
     if not lines:
@@ -253,6 +253,7 @@ def collect_purchase(
     movements = []
     for line_data in lines:
         line: PurchaseLine = line_data["purchase_line"]
+        line.refresh_from_db()
         quantity: Decimal = line_data["quantity"]
         if line.purchase_id != purchase.pk or line.is_deleted:
             raise ValidationError({"lines": f"Line {line.pk} does not belong to this purchase."})
@@ -319,14 +320,17 @@ def collect_purchase(
     return collection
 
 
-@transaction.atomic
+@stock_transaction
 def update_purchase(*, purchase: Purchase, header: dict, lines: list[dict], user) -> Purchase:
     """Header edits are plain audited updates; stock-affecting line edits post
-    reversal rows for the old pending state + fresh rows for the new (§5.2,
-    FR-081). Lines with collected stock keep pricing immutable — quantity may
-    only grow or shrink down to the collected amount."""
+    reversal rows for the old state + fresh rows for the new (§5.2, FR-081).
+    Eligible received lines can correct product/price by replaying collections;
+    downstream dependencies remain protected."""
+    purchase.refresh_from_db()
     if purchase.is_deleted:
         raise ValidationError({"purchase": "This purchase has been deleted."})
+    if not lines:
+        raise ValidationError({"lines": "Keep at least one product line on the invoice."})
     before = snapshot_purchase(purchase)
 
     if "location" in header and header["location"] != purchase.location:
@@ -404,7 +408,7 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
         line.save()
         return []
 
-    if collected > 0 or line.refunded_qty > 0:
+    if line.refunded_qty > 0:
         illegal = [name for name in changed if name in PRICING_FIELDS or name == "gst_rate"]
         if illegal:
             raise ValidationError(
@@ -426,6 +430,19 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
                 )
             }
         )
+
+    pricing_changed = any(name in PRICING_FIELDS or name == "gst_rate" for name in changed)
+    if collected > 0 and pricing_changed:
+        unsupported = set(changed) & {"currency", "exchange_rate", "gst_rate_percent", "gst_rate"}
+        if unsupported:
+            raise ValidationError({
+                "lines": "Currency, exchange rate and GST remain fixed after collection. "
+                "This correction supports product and unit price changes.",
+            })
+        from .corrections import correct_received_line
+
+        correct_received_line(line, changed, user)
+        return []
 
     # Reverse what remains in pending for the old state.
     movements = []
@@ -469,7 +486,12 @@ def _reprice_line(line: PurchaseLine, line_data: dict, user) -> list[Movement]:
 
 def _remove_line(line: PurchaseLine, user) -> list[Movement]:
     """Soft-delete a line during an invoice edit; reversal rows only (§5.2)."""
-    if line.collected_qty > 0 or line.refunded_qty > 0:
+    if line.collected_qty > 0:
+        from .corrections import correct_received_line
+
+        correct_received_line(line, {}, user, remove=True)
+        return []
+    if line.refunded_qty > 0:
         raise ValidationError(
             {
                 "lines": (
@@ -501,10 +523,11 @@ def _remove_line(line: PurchaseLine, user) -> list[Movement]:
     return movements
 
 
-@transaction.atomic
+@stock_transaction
 def soft_delete_purchase(*, purchase: Purchase, user, confirm_negative=False) -> None:
     """Soft delete: reversal rows only (§5.2) — remaining pending is backed
     out and collected physical stock is reversed. History stays traceable."""
+    purchase.refresh_from_db()
     if purchase.is_deleted:
         raise ValidationError({"purchase": "This purchase is already deleted."})
     before = snapshot_purchase(purchase)
@@ -575,9 +598,10 @@ def soft_delete_purchase(*, purchase: Purchase, user, confirm_negative=False) ->
     )
 
 
-@transaction.atomic
+@stock_transaction
 def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=False) -> None:
     """Undo a collection: +PENDING back, −PHYSICAL out, soft delete (§5.2)."""
+    collection.refresh_from_db()
     if collection.is_deleted:
         raise ValidationError({"collection": "This collection is already deleted."})
     before = snapshot_collection(collection)
@@ -585,9 +609,9 @@ def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=
     entries = StockLedgerEntry.objects.filter(
         source_type=SourceType.PURCHASE_COLLECTION, source_id=collection.pk
     )
-    from apps.inventory.services import reversal_movements
-
-    movements = reversal_movements(entries, notes="Collection deleted.")
+    movements = net_reversal_movements(
+        entries, notes="Collection deleted: reverse current contribution.",
+    )
 
     collection.is_deleted = True
     collection.deleted_at = timezone.now()
@@ -613,7 +637,7 @@ def delete_collection(*, collection: PurchaseCollection, user, confirm_negative=
     )
 
 
-@transaction.atomic
+@stock_transaction
 def create_refund(
     *,
     purchase: Purchase,
@@ -633,6 +657,7 @@ def create_refund(
     rate, frozen onto the refund line for the GST/refund reports
     (FR-053/FR-054/FR-093/FR-122).
     """
+    purchase.refresh_from_db()
     if purchase.is_deleted:
         raise ValidationError({"purchase": "This purchase has been deleted."})
     if not lines:
@@ -656,6 +681,7 @@ def create_refund(
     movements = []
     for line_data in lines:
         line: PurchaseLine = line_data["purchase_line"]
+        line.refresh_from_db()
         source: str = line_data["source"]
         quantity: Decimal = line_data["quantity"]
         if line.purchase_id != purchase.pk or line.is_deleted:
@@ -750,10 +776,11 @@ def create_refund(
     return refund
 
 
-@transaction.atomic
+@stock_transaction
 def delete_refund(*, refund: PurchaseRefund, user, confirm_negative=False) -> None:
     """Undo a refund: its reversal entries are themselves reversed (history
     preserved), and the refund is soft-deleted."""
+    refund.refresh_from_db()
     if refund.is_deleted:
         raise ValidationError({"refund": "This refund is already deleted."})
     before = snapshot_refund(refund)

@@ -276,6 +276,40 @@ If part of the quantity is collected, status becomes partially received.
 
 If uncollected pending quantity is cancelled/refunded, status updates accordingly.
 
+### Corrections before sale (deployed 2026-10-22)
+
+The first-priority purchase editing change is to allow correcting the selected
+product, correcting unit price, and removing an erroneous product line from a
+saved invoice while the affected goods have not been sold. Goods recorded as
+collected, including collection at initial invoice entry, must not be locked solely
+because they have been received.
+
+Corrections must retain invoice and audit history, use reversal/correction ledger
+entries, and keep pending/physical quantities, AED cost, GST, and reports consistent.
+Removing one erroneous line must preserve the rest of the invoice. Changing the
+selected product on one invoice is distinct from renaming the shared Product Master.
+
+For this first change, block product/price/removal on a dependent line and explain
+the reason; allow eligible lines on the same invoice to be corrected. Dependencies
+include refunds/cancellations, open draft shipments, and sales, shipments,
+receipts, or adjustments affecting that product at its collection locations after
+receipt. Historical reversed downstream activity is conservatively blocked too.
+Sales are pooled without purchase-lot allocation, so activity from another invoice
+can also block a line. Insufficient remaining quantity/value or inconsistent
+history requires review rather than an automatic correction.
+
+Currency, exchange rate, and GST stay fixed after collection in this first change.
+The quantity floor remains collected plus cancelled pending quantity. Keep at
+least one line on an invoice; whole-invoice deletion remains a separate action.
+Existing collections retain their dates, quantities, and locations. Their current
+net stock contributions are reversed and replayed at the corrected product/cost,
+so subsequent collection, undo, refunds, and valuation use the corrected basis.
+Eligibility and stock postings are atomic with competing stock writes.
+
+See [implementation and local verification](../production-issues/2026-10-22-purchase-corrections-local-fix.md).
+Production deployment was explicitly authorized and completed on 2026-10-22; see
+the [deployment record](../production-issues/2026-10-22-purchase-corrections-deployment.md).
+
 ## 9. Purchase Collection/Pending
 
 Purchase collection is separate from shipment.
@@ -558,6 +592,23 @@ Quick totals may include:
 - total AED value
 - total GST
 - total records
+
+### Purchase search (local enhancement, 2026-10-22)
+
+Provide a larger scoped text search, clear action, quick status buttons, and a
+collapsible supplier/location/product/date filter panel. Support inclusive date
+limits, Dubai-business-date shortcuts, stable sorting, removable filter chips,
+reset, counts, and clear loading/error/empty states. Include inactive references
+for historical searches. Product text search includes SKU, brand, model, and
+storage/specs and ignores removed invoice lines. Return each invoice once.
+
+Apply combined filters on the server before pagination and totals. A matching
+invoice includes all its remaining product lines in totals, not only the product
+that matched. Filters must match the existing computed status rules, including
+mixed refunds/cancellations. No stock/data writes or schema changes are involved.
+Implemented and deployed on 2026-10-22 after explicit authorization, validated
+backups, and unchanged before/after data hashes. See
+[technical notes and verification](../architecture/purchase-search.md).
 
 ## 19. Reports
 

@@ -1,20 +1,25 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AttachmentsPanel from "@/components/attachments-panel";
 import Combobox from "@/components/combobox";
 import Pagination from "@/components/pagination";
+import PurchaseSearch from "@/components/purchase-search";
 import { api, apiAll, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { toOptions } from "@/lib/options";
+import { optionLabel, toOptions, withSelectedOptions } from "@/lib/options";
 import { canWrite } from "@/lib/permissions";
+import { purchaseLineEditState } from "@/lib/purchase-edit";
+import { EMPTY_PURCHASE_FILTERS, purchaseSearchParams, type PurchaseFilters } from "@/lib/purchase-search";
 
 interface Option {
   id: number;
   name?: string;
   code?: string;
   storage_specs?: string;
+  is_active?: boolean;
+  can_purchase?: boolean;
 }
 
 interface LineForm {
@@ -27,8 +32,11 @@ interface LineForm {
   gst_rate_percent: string;
   collected_qty: string;
   notes: string;
-  /** Set for existing lines with collected stock: pricing is locked. */
   collected?: string;
+  refunded?: string;
+  can_correct?: boolean;
+  correction_block_reason?: string;
+  minimum_quantity?: string;
 }
 
 interface PurchaseLine {
@@ -46,6 +54,9 @@ interface PurchaseLine {
   gst_amount: string;
   gst_amount_aed: string;
   collected: string;
+  refunded: string;
+  can_correct: boolean;
+  correction_block_reason: string;
   pending: string;
   status: string;
   notes: string;
@@ -107,9 +118,16 @@ export default function PurchasesPage() {
 
   const [rows, setRows] = useState<Purchase[]>([]);
   const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<PurchaseFilters>(EMPTY_PURCHASE_FILTERS);
+  const [query, setQuery] = useState({ filters: EMPTY_PURCHASE_FILTERS, page: 1 });
+  const page = query.page;
+  const queryString = purchaseSearchParams(query.filters, page);
+  const intendedQuery = useRef(queryString);
+  const latestRequest = useRef(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [optionsError, setOptionsError] = useState("");
   const [totals, setTotals] = useState<Record<string, string>>({});
-  const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState("");
 
@@ -131,44 +149,91 @@ export default function PurchasesPage() {
   const [suppliers, setSuppliers] = useState<Option[]>([]);
   const [currencies, setCurrencies] = useState<Option[]>([]);
 
-  const productOptions = useMemo(() => toOptions(products), [products]);
-  const locationOptions = useMemo(() => toOptions(locations), [locations]);
-  const supplierOptions = useMemo(() => toOptions(suppliers), [suppliers]);
+  const productOptions = useMemo(() => toOptions(products.filter((item) => item.is_active !== false)), [products]);
+  const filterLabel = (item: Option) => `${optionLabel(item)}${item.is_active === false ? " (inactive)" : ""}`;
+  const filterProducts = useMemo(() => toOptions(products, filterLabel), [products]);
+  const filterLocations = useMemo(() => toOptions(locations, filterLabel), [locations]);
+  const filterSuppliers = useMemo(() => toOptions(suppliers, filterLabel), [suppliers]);
+  const locationOptions = useMemo(() => withSelectedOptions(toOptions(locations.filter((item) => item.is_active !== false && item.can_purchase !== false)), editing
+    ? [{ value: String(editing.location), label: editing.location_name }] : []), [locations, editing]);
+  const supplierOptions = useMemo(() => withSelectedOptions(toOptions(suppliers.filter((item) => item.is_active !== false)), editing
+    ? [{ value: String(editing.supplier), label: editing.supplier_name }] : []), [suppliers, editing]);
   // Currencies are picked by their code, as they always have been.
   const currencyOptions = useMemo(
     () => toOptions(currencies, (currency) => currency.code ?? currency.name ?? `#${currency.id}`),
     [currencies],
   );
 
+  function changeFilters(next: PurchaseFilters) {
+    setFilters(next);
+    intendedQuery.current = purchaseSearchParams(next);
+    if (intendedQuery.current !== queryString) {
+      latestRequest.current += 1;
+      setLoading(true);
+    } else {
+      // Returning to the current query before debounce must restart cancelled loads.
+      setRefreshKey((value) => value + 1);
+    }
+    setError("");
+    setExpanded(null);
+  }
+
+  // Set filters and page together: changing filters never requests an old page.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery((current) => (
+      current.filters === filters && current.page === 1 ? current : { filters, page: 1 }
+    )), 300);
+    return () => window.clearTimeout(timer);
+  }, [filters]);
+
   const load = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (page > 1) params.set("page", String(page));
-    const query = params.size ? `?${params}` : "";
-    const data = await api<ListResponse>(`/api/v1/purchases/${query}`);
-    setRows(data.results);
-    setCount(data.count);
-    setTotals(data.totals ?? {});
-  }, [search, page]);
+    if (queryString !== intendedQuery.current) return;
+    const request = ++latestRequest.current;
+    setLoading(true);
+    setError("");
+    const params = new URLSearchParams(queryString);
+    if (params.get("date_from") && params.get("date_to") && params.get("date_from")! > params.get("date_to")!) {
+      setError("End date must be on or after start date.");
+      setRows([]); setCount(0); setTotals({}); setLoading(false);
+      return;
+    }
+    try {
+      const data = await api<ListResponse>(`/api/v1/purchases/${queryString ? `?${queryString}` : ""}`);
+      if (request !== latestRequest.current || queryString !== intendedQuery.current) return;
+      setRows(data.results);
+      setCount(data.count);
+      setTotals(data.totals ?? {});
+    } catch (err) {
+      if (request !== latestRequest.current || queryString !== intendedQuery.current) return;
+      setError(errorMessage(err)); setRows([]); setCount(0); setTotals({});
+    } finally {
+      if (request === latestRequest.current) setLoading(false);
+    }
+  }, [queryString]);
 
   useEffect(() => {
-    load().catch((err) => setError(errorMessage(err)));
-  }, [load]);
+    void load();
+    return () => { latestRequest.current += 1; };
+  }, [load, refreshKey]);
 
-  useEffect(() => {
-    apiAll<Option>("/api/v1/products/?is_active=true")
-      .then(setProducts)
-      .catch(() => undefined);
-    apiAll<Option>("/api/v1/locations/?can_purchase=true&is_active=true")
-      .then(setLocations)
-      .catch(() => undefined);
-    apiAll<Option>("/api/v1/suppliers/?is_active=true")
-      .then(setSuppliers)
-      .catch(() => undefined);
-    apiAll<Option>("/api/v1/currencies/?is_active=true")
-      .then(setCurrencies)
-      .catch(() => undefined);
+  const loadChoices = useCallback(async () => {
+    setOptionsError("");
+    const results = await Promise.allSettled([
+      apiAll<Option>("/api/v1/products/"),
+      apiAll<Option>("/api/v1/locations/"),
+      apiAll<Option>("/api/v1/suppliers/"),
+      apiAll<Option>("/api/v1/currencies/?is_active=true"),
+    ]);
+    const setters = [setProducts, setLocations, setSuppliers, setCurrencies];
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") setters[index](result.value);
+    });
+    if (results.some((result) => result.status === "rejected")) {
+      setOptionsError("Some filter choices could not be loaded.");
+    }
   }, []);
+
+  useEffect(() => { void loadChoices(); }, [loadChoices]);
 
   function openCreate() {
     setEditing(null);
@@ -205,6 +270,10 @@ export default function PurchasesPage() {
         collected_qty: "",
         notes: line.notes,
         collected: line.collected,
+        refunded: line.refunded,
+        can_correct: line.can_correct,
+        correction_block_reason: line.correction_block_reason,
+        minimum_quantity: Math.max(0.01, Number(line.quantity) - Number(line.pending)).toFixed(2),
       })),
     );
     setFormError("");
@@ -269,26 +338,16 @@ export default function PurchasesPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">Purchases</h1>
-        <span className="text-sm text-muted">{count} invoices</span>
-        <div className="ml-auto flex items-center gap-2">
-          <input
-            className="rounded border border-edge px-3 py-1.5 text-sm"
-            placeholder="Search invoice, product, supplier…"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-          {writable && (
-            <button
-              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary hover:bg-primary-strong"
-              onClick={openCreate}
-            >
-              New Purchase
-            </button>
-          )}
-        </div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div><h1 className="text-2xl font-semibold tracking-tight">Purchases</h1>
+          <p className="mt-1 text-sm text-muted">Find invoices and keep track of what’s received and pending.</p></div>
+        {writable && <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-on-primary hover:bg-primary-strong" onClick={openCreate}><span aria-hidden="true">+</span> New Purchase</button>}
       </div>
+
+      <PurchaseSearch filters={filters} onChange={changeFilters}
+        suppliers={filterSuppliers} locations={filterLocations} products={filterProducts}
+        loading={loading} count={count} page={page} error={error}
+        optionsError={optionsError} onRetryOptions={() => void loadChoices()} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
@@ -300,14 +359,14 @@ export default function PurchasesPage() {
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-edge bg-surface px-4 py-3">
             <div className="text-xs uppercase text-muted">{label}</div>
-            <div className="text-lg font-semibold">{value ?? "—"}</div>
+            <div className="text-lg font-semibold">{loading || error ? "—" : value ?? "—"}</div>
           </div>
         ))}
       </div>
 
-      {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="mb-3 text-sm text-danger">{error} <button className="underline" onClick={() => void load()}>Retry</button></p>}
 
-      <div className="overflow-x-auto rounded-lg border border-edge bg-surface">
+      <div aria-busy={loading} className="overflow-x-auto rounded-lg border border-edge bg-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-edge bg-surface-2 text-xs uppercase text-muted">
             <tr>
@@ -321,7 +380,7 @@ export default function PurchasesPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((purchase) => (
+            {!loading && !error && rows.map((purchase) => (
               <Fragment key={purchase.id}>
                 <tr
                   className="cursor-pointer border-b border-edge-2 last:border-0 hover:bg-surface-2"
@@ -411,18 +470,21 @@ export default function PurchasesPage() {
                 )}
               </Fragment>
             ))}
-            {rows.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-center text-faint" colSpan={7}>
-                  No purchases
-                </td>
-              </tr>
-            )}
+            {loading && <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-muted"><span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-primary align-middle motion-reduce:animate-none" />Loading purchases…</td></tr>}
+            {!loading && rows.length === 0 && <tr><td className="px-4 py-12 text-center" colSpan={7}>
+              <p className="font-medium text-ink-2">{error ? "Purchases could not be loaded" : "No matching purchases"}</p>
+              <p className="mt-1 text-sm text-muted">{error ? "Try loading the list again." : "Try a different search or remove a filter to see more invoices."}</p>
+              {!error && <button className="mt-3 text-sm font-medium text-primary hover:underline" onClick={() => changeFilters({ ...EMPTY_PURCHASE_FILTERS })}>Clear search and filters</button>}
+            </td></tr>}
           </tbody>
         </table>
       </div>
 
-      <Pagination page={page} count={count} onPage={setPage} />
+      {!loading && !error && <Pagination page={page} count={count} onPage={(nextPage) => {
+        intendedQuery.current = purchaseSearchParams(query.filters, nextPage);
+        latestRequest.current += 1; setLoading(true); setExpanded(null);
+        setQuery({ ...query, page: nextPage });
+      }} />}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -496,9 +558,20 @@ export default function PurchasesPage() {
                   + Add line
                 </button>
               </div>
+              {editing && (
+                <p className="mb-3 text-xs text-muted">
+                  You can correct products, unit prices and remove lines while received stock
+                  has no downstream movements. Currency, exchange rate and GST stay fixed after collection.
+                </p>
+              )}
               <div className="space-y-3">
                 {lines.map((line, index) => {
-                  const locked = Boolean(line.id) && Number(line.collected ?? "0") > 0;
+                  const { correctionLocked, ratesLocked, reason } = purchaseLineEditState(line);
+                  const original = editing?.lines.find((item) => item.id === line.id);
+                  const lineProducts = withSelectedOptions(productOptions, original
+                    ? [{ value: String(original.product), label: original.product_name }] : []);
+                  const lineCurrencies = withSelectedOptions(currencyOptions, original
+                    ? [{ value: String(original.currency), label: original.currency_code }] : []);
                   return (
                     <div
                       key={line.id ?? `new-${index}`}
@@ -511,8 +584,8 @@ export default function PurchasesPage() {
                         <Combobox
                           className={inputCls}
                           required
-                          disabled={locked}
-                          options={productOptions}
+                          disabled={correctionLocked}
+                          options={lineProducts}
                           value={line.product}
                           onChange={(value) => {
                             const next = [...lines];
@@ -527,7 +600,7 @@ export default function PurchasesPage() {
                           className={inputCls}
                           type="number"
                           step="any"
-                          min="0"
+                          min={line.minimum_quantity ?? "0.01"}
                           required
                           value={line.quantity}
                           onChange={(e) => {
@@ -547,7 +620,7 @@ export default function PurchasesPage() {
                           step="any"
                           min="0"
                           required
-                          disabled={locked}
+                          disabled={correctionLocked}
                           value={line.unit_price}
                           onChange={(e) => {
                             const next = [...lines];
@@ -563,8 +636,8 @@ export default function PurchasesPage() {
                         <Combobox
                           className={inputCls}
                           required
-                          disabled={locked}
-                          options={currencyOptions}
+                          disabled={ratesLocked}
+                          options={lineCurrencies}
                           value={line.currency}
                           onChange={(value) => {
                             const next = [...lines];
@@ -583,7 +656,7 @@ export default function PurchasesPage() {
                           step="any"
                           min="0"
                           placeholder="auto"
-                          disabled={locked}
+                          disabled={ratesLocked}
                           value={line.exchange_rate}
                           onChange={(e) => {
                             const next = [...lines];
@@ -602,7 +675,7 @@ export default function PurchasesPage() {
                             type="number"
                             step="any"
                             min="0"
-                            disabled={locked}
+                            disabled={ratesLocked}
                             value={line.gst_rate_percent}
                             onChange={(e) => {
                               const next = [...lines];
@@ -627,7 +700,7 @@ export default function PurchasesPage() {
                         )}
                       </label>
                       <div className="flex items-end justify-end pb-1">
-                        {lines.length > 1 && !locked && (
+                        {lines.length > 1 && !correctionLocked && (
                           <button
                             type="button"
                             className="text-xs text-danger hover:underline"
@@ -636,12 +709,15 @@ export default function PurchasesPage() {
                             Remove
                           </button>
                         )}
-                        {locked && (
-                          <span className="text-xs text-faint">
-                            collected: {line.collected}
-                          </span>
-                        )}
                       </div>
+                      {line.id && (
+                        <p className="text-xs text-muted sm:col-span-2 lg:col-span-7">
+                          Collected: {line.collected}. Minimum quantity: {line.minimum_quantity}.
+                        </p>
+                      )}
+                      {reason && (
+                        <p className="text-xs text-warning sm:col-span-2 lg:col-span-7">{reason}</p>
+                      )}
                     </div>
                   );
                 })}

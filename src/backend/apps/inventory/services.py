@@ -9,13 +9,31 @@ product+location+bucket serialize.
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from functools import wraps
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from .models import Bucket, SourceType, StockBalance, StockLedgerEntry
 
 TWO_PLACES = Decimal("0.01")
+# Shared across the single-company domain services. Taking this before business
+# validation/costing prevents a correction racing a sale or dispatch after its
+# eligibility check. Transaction-scoped: PostgreSQL releases it on commit/rollback.
+STOCK_WRITE_LOCK = 0x53544F434B
+
+
+def stock_transaction(function):
+    """Atomic stock operation, serialized before any eligibility/cost reads."""
+
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [STOCK_WRITE_LOCK])
+            return function(*args, **kwargs)
+
+    return wrapped
 
 
 class PostingError(Exception):
@@ -74,6 +92,7 @@ class PostedEvent:
     entries: list[StockLedgerEntry] = field(default_factory=list)
 
 
+@stock_transaction
 def post_event(
     *,
     txn_type,
@@ -175,6 +194,53 @@ def reversal_movements(entries, notes=""):
     return moves
 
 
+def net_reversal_movements(entries, notes=""):
+    """Reverse a source's current contribution, including prior corrections.
+
+    Summing by line/product/location/bucket avoids resurrecting superseded
+    products or costs, transient negative stock, and exponentially replaying
+    original/reversal history after repeated corrections. Source identities and
+    notes retain traceability; original immutable rows remain in the ledger.
+    """
+    groups = {}
+    for entry in entries:
+        key = (
+            entry.source_line_id, entry.product_id, entry.location_id,
+            entry.bucket, entry.currency, entry.related_location_id,
+        )
+        group = groups.setdefault(key, [entry, Decimal("0"), Decimal("0"), Decimal("0")])
+        direction = 1 if entry.qty_in else -1
+        group[1] += entry.qty_in - entry.qty_out
+        group[2] += direction * entry.aed_value
+        group[3] += direction * entry.gst_value
+
+    moves = []
+    for entry, quantity, aed, gst in groups.values():
+        if quantity == 0:
+            if aed or gst:
+                raise PostingError("A zero-quantity source has residual value; review before undo.")
+            continue
+        direction = 1 if quantity > 0 else -1
+        if direction * aed < 0 or direction * gst < 0:
+            raise PostingError("Source quantity/value directions differ; review before undo.")
+        moves.append(Movement(
+            product=entry.product, location=entry.location, bucket=entry.bucket,
+            qty_in=-quantity if quantity < 0 else Decimal("0"),
+            qty_out=quantity if quantity > 0 else Decimal("0"),
+            aed_value=abs(aed), gst_value=abs(gst), currency=entry.currency,
+            related_location=entry.related_location, source_line_id=entry.source_line_id,
+            reversal_of=entry if (
+                entry.net_qty == quantity
+                and (entry.aed_value if entry.qty_in else -entry.aed_value) == aed
+                and (entry.gst_value if entry.qty_in else -entry.gst_value) == gst
+            ) else None,
+            notes=notes,
+        ))
+    # Credits first if a source contains several components of a pooled balance.
+    return sorted(moves, key=lambda movement: not bool(movement.qty_in))
+
+
+@stock_transaction
 def rebuild_stock_balances():
     """Recompute every StockBalance from the full ledger; report drift.
 

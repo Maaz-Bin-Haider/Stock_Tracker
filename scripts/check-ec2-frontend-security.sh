@@ -32,8 +32,8 @@ if [[ ! "$NEXT_LOCK_VERSION" =~ ^15\.5\.([0-9]+)$ ]]; then
 fi
 
 NEXT_PATCH="${BASH_REMATCH[1]}"
-if (( NEXT_PATCH < 24 )); then
-  echo "ERROR: Next.js $NEXT_LOCK_VERSION is older than the required patched 15.5.24 release." >&2
+if (( NEXT_PATCH < 28 )); then
+  echo "ERROR: Next.js $NEXT_LOCK_VERSION is older than the required patched 15.5.28 release." >&2
   echo "Update the package and lockfile, then repeat the audit/build gate in deployment/AWS_EC2_GUIDE.md." >&2
   exit 1
 fi

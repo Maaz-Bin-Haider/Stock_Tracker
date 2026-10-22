@@ -34,10 +34,9 @@ files, databases, Docker volumes, media, exports, or backups to AWS.
 
 ### Required frontend security gate
 
-Do not expose the production instance unless this gate passes. The August 2026
-Next.js security release moved forward to **2026-08-25** and requires 15.5.24 for
-projects remaining on the maintained 15.5 line. This repository is locked to
-Next.js 15.5.24. Before transferring the source to EC2, run:
+Do not expose the production instance unless this gate passes. The production audit on **2026-10-22** updated the maintained 15.5 line to
+Next.js **15.5.28**, including fixes published since the previous 15.5.24 deployment.
+This repository is locked to 15.5.28. Before transferring the source to EC2, run:
 
 ```bash
 cd src/frontend
@@ -196,7 +195,7 @@ sudo scripts/setup-ec2.sh
 The script:
 
 1. Refuses non-ARM64 machines, missing EC2 secrets, and any Next.js lockfile older
-   than patched 15.5.24 or outside the approved 15.5 maintenance line.
+   than patched 15.5.28 or outside the approved 15.5 maintenance line.
 2. Refuses to harden SSH unless the Ubuntu account already has an authorized key.
 3. Installs Docker Engine/Compose and enables Ubuntu unattended security updates.
 4. Creates 2 GB swap for build headroom on the 4 GiB instance.

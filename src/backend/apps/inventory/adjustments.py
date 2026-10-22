@@ -10,7 +10,6 @@ current average so the unit cost is undisturbed.
 
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db import transaction
 from django.db.models import Case, DecimalField, F, Sum, When
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -27,7 +26,7 @@ from .models import (
     StockLedgerEntry,
     TxnType,
 )
-from .services import Movement, post_event
+from .services import Movement, post_event, stock_transaction
 
 TWO_PLACES = Decimal("0.01")
 MODULE = "stock_adjustments"
@@ -109,7 +108,7 @@ def _validate(data: dict) -> None:
         raise ValidationError({"reason": "A reason is required (FR-075)."})
 
 
-@transaction.atomic
+@stock_transaction
 def create_adjustment(*, data: dict, user, confirm_negative=False) -> StockAdjustment:
     _validate(data)
     adjustment = StockAdjustment.objects.create(created_by=user, updated_by=user, **data)
@@ -132,11 +131,12 @@ def create_adjustment(*, data: dict, user, confirm_negative=False) -> StockAdjus
     return adjustment
 
 
-@transaction.atomic
+@stock_transaction
 def update_adjustment(
     *, adjustment: StockAdjustment, data: dict, user, confirm_negative=False
 ) -> StockAdjustment:
     """Reversal of the net posted state + fresh rows for the new (§5.2)."""
+    adjustment.refresh_from_db()
     if adjustment.is_deleted:
         raise ValidationError({"adjustment": "This adjustment has been deleted."})
     _validate(data)
@@ -175,10 +175,11 @@ def update_adjustment(
     return adjustment
 
 
-@transaction.atomic
+@stock_transaction
 def soft_delete_adjustment(
     *, adjustment: StockAdjustment, user, confirm_negative=False
 ) -> None:
+    adjustment.refresh_from_db()
     if adjustment.is_deleted:
         raise ValidationError({"adjustment": "This adjustment is already deleted."})
     before = snapshot_adjustment(adjustment)

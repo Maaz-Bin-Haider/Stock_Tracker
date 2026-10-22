@@ -329,7 +329,7 @@ class TestPurchaseEditDelete:
         assert reversals.count() == 2  # one reversal out + one fresh in
         assert reconciled()
 
-    def test_edit_pricing_after_collection_rejected(self, purchase_client, masterdata):
+    def test_edit_pricing_after_collection_revalues_unsold_stock(self, purchase_client, masterdata):
         body = self._create(purchase_client, masterdata)
         purchase_client.post(
             f"{PURCHASES}{body['id']}/collections/",
@@ -363,7 +363,13 @@ class TestPurchaseEditDelete:
             self._update_payload(body, [edited, keep]),
             format="json",
         )
-        assert response.status_code == 400
+        assert response.status_code == 200, response.data
+        assert balance(masterdata.phone, masterdata.sydney, Bucket.PHYSICAL) == (
+            Decimal("40.00"), Decimal("95904.00"),
+        )
+        assert balance(masterdata.phone, masterdata.sydney, Bucket.PENDING) == (
+            Decimal("60.00"), Decimal("143856.00"),
+        )
         assert reconciled()
 
     def test_quantity_below_collected_rejected(self, purchase_client, masterdata):

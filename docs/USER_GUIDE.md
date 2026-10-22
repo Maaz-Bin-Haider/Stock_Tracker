@@ -266,6 +266,26 @@ quantity**, **Collected**, **Pending**, **Value (AED)**, and **GST (AED)**.
 - If you'd typed `10` in **Collected now**, the 10 units would instead land in
   **Physical** at Sydney right away, and the status would be **FULLY COLLECTED**.
 
+### Finding an invoice
+
+The updated search panel was deployed on 2026-10-22. Refresh the Purchases page
+to load the new controls if it was open during the update.
+
+- Type an invoice number, product name, SKU/specs, supplier, location, or invoice
+  note. Use **All fields** to narrow the search to one of those categories.
+- Use the status buttons for **Pending**, **Partially received**, **Fully collected**,
+  **Cancelled**, or **Refunded**, or return to **All invoices**.
+- Open **Filters** to combine supplier, purchase location, exact product, and
+  purchase date limits. **Today**, **Last 7 days**, and **This month** use the Dubai
+  business date; the start and end dates are included. Inactive catalogue choices
+  remain available for finding older invoices.
+- Use **Sort by** for newest/oldest purchase dates, invoice number, or supplier.
+  Remove an individual filter chip, or choose **Reset all** to start again.
+
+The result count and quantity/value/GST cards cover all matching invoices, across
+every page. Product filtering returns the whole invoice, so its other product
+lines are included in totals too. Removed product lines do not match a search.
+
 ### Viewing invoice details
 
 Click any invoice row to expand it. You'll see every line with its quantity, unit
@@ -281,11 +301,17 @@ pending, and the line status. You can also **upload invoice files** here (Sectio
 
 ### Editing and deleting
 
-- **Edit** — change the invoice. Once a line has *collected* stock, its product,
-  price, currency, and rate are **locked** (you can't rewrite the price of goods
-  you've already received) — but you can still change quantity upward or edit
-  uncollected lines. On an existing line you'll also see a **GST %** field to set the
-  GST rate.
+- **Edit** — correct the selected product or unit price, or remove an erroneous
+  line. Received stock can be corrected while it has not moved further. The editor
+  explains when a sale, shipment, refund/cancellation, or stock adjustment blocks a
+  line; other eligible lines remain editable. Because stock is pooled, activity for
+  the same product at the collection location can block it even if another invoice
+  supplied that activity. Historical reversed movements also require review.
+  Currency, exchange rate, and GST remain locked after collection. Quantity cannot
+  drop below the minimum shown (already collected plus cancelled pending units).
+  Keep at least one line; use **Delete** for a whole invoice. Corrections preserve
+  collection history and update stock, cost, and GST. This behavior was verified
+  locally and deployed to production on 2026-10-22.
 - **Delete** — removes the invoice. **What happens:** any pending and collected
   stock is reversed out, but the record stays visible in the ledger and audit
   history. You'll be asked to confirm first.

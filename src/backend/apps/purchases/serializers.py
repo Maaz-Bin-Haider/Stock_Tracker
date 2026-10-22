@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.masterdata.models import ExchangeRate, GstRate, Location
 
+from .corrections import correction_block_reason
 from .models import Purchase, PurchaseCollection, PurchaseLine, PurchaseRefund, RefundSource
 
 
@@ -27,6 +28,8 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
     refunded = serializers.SerializerMethodField()
     net = serializers.SerializerMethodField()
     status = serializers.CharField(read_only=True)
+    can_correct = serializers.SerializerMethodField()
+    correction_block_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseLine
@@ -52,6 +55,8 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
             "net",
             "status",
             "notes",
+            "can_correct",
+            "correction_block_reason",
         ]
         read_only_fields = [
             "unit_price_aed",
@@ -78,6 +83,17 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
     def get_net(self, obj):
         return str(obj.net_qty)
 
+    def _correction_reason(self, obj):
+        if not hasattr(obj, "_correction_reason"):
+            obj._correction_reason = correction_block_reason(obj)
+        return obj._correction_reason
+
+    def get_can_correct(self, obj):
+        return not self._correction_reason(obj)
+
+    def get_correction_block_reason(self, obj):
+        return self._correction_reason(obj)
+
     def validate(self, attrs):
         quantity = attrs.get("quantity", getattr(self.instance, "quantity", None))
         if quantity is not None and quantity <= 0:
@@ -94,7 +110,7 @@ class PurchaseLineSerializer(serializers.ModelSerializer):
 
 
 class PurchaseSerializer(serializers.ModelSerializer):
-    lines = PurchaseLineSerializer(many=True)
+    lines = PurchaseLineSerializer(many=True, allow_empty=False)
     location_name = serializers.CharField(source="location.name", read_only=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     status = serializers.CharField(read_only=True)
@@ -121,6 +137,8 @@ class PurchaseSerializer(serializers.ModelSerializer):
         ]
 
     def validate_location(self, location):
+        if self.instance is not None and location.pk == self.instance.location_id:
+            return location  # Historical references remain valid for corrections.
         if not location.can_purchase or not location.is_active:
             raise serializers.ValidationError(
                 f"{location.name} is not an active purchase location (FR-026)."
@@ -132,6 +150,9 @@ class PurchaseSerializer(serializers.ModelSerializer):
             "purchase_date", getattr(self.instance, "purchase_date", None)
         )
         location = attrs.get("location", getattr(self.instance, "location", None))
+        ids = [line["id"] for line in attrs.get("lines", []) if "id" in line]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError({"lines": "An invoice line may appear only once."})
         for line in attrs.get("lines", []):
             self._resolve_frozen_rates(line, purchase_date, location)
         return attrs

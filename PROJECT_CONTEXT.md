@@ -7,7 +7,7 @@ This root-level context file is maintained so future work can continue from the 
 - Repository folder: `Stock_Tracker`
 - Purpose: plan and build a professional web-based inventory system to replace the current spreadsheet workflow.
 - Original workbook reference: `data/source/stock_tracker_original.xlsx`
-- Implementation status: phases M0–M7 complete; the production application passed manual testing on Windows. **M8 AWS deployment is approved and its repository implementation is complete, with the frontend security gate updated to patched Next.js 15.5.24; live EC2 execution by the client remains:** fresh Ubuntu 24.04 ARM64 `t4g.medium` in Mumbai (`ap-south-1`), 50 GB encrypted gp3, manually associated Elastic IP, trusted automatically renewed IP-address HTTPS, hardened public key-only SSH, new Admin/users, and no testing data. The initial deployment keeps database/media/export/backup storage on EBS; backup pairs are copied manually to the Mac and automatic private S3 backup is the next durability upgrade.
+- Implementation status: phases M0–M7 and local production tooling are complete; Windows manual testing passed and **AWS production is live**. Read-only checks on 2026-10-21 confirmed all seven EC2 services running, HTTPS health responding, an active TLS renewal timer, and Next.js 15.5.24. The latest application deployment is 2026-10-22 (modern purchase search, following the earlier unsold purchase corrections); the latest recorded data repair remains 2026-09-07. The approved host is Ubuntu 24.04 ARM64 `t4g.medium` in Mumbai (`ap-south-1`), with encrypted gp3 EBS and Elastic-IP HTTPS. Database/media/export/backup storage remains on EBS; backup pairs are copied manually to the Mac and automatic private S3 backup is the next durability upgrade. Purchase-edit restrictions and defects were reproduced locally on 2026-10-21. The prioritized product/price/removal corrections were verified locally and deployed on 2026-10-22 after explicit authorization, backups, and unchanged before/after data hashes. Next.js is now 15.5.28. The modern purchase search was subsequently deployed on the same date, with the exact ARM64 image passing 308 tests and unchanged application-table hashes during the switch.
 
 ## Current Project Structure
 
@@ -95,9 +95,24 @@ Stock_Tracker/
 
 ## Open Items
 
-- **Live EC2 execution remains:** the client will manually create the documented
-  instance/security group/Elastic IP, transfer the clean source, and run the guarded setup.
-- **Required go-live gate:** Next.js is locked to patched 15.5.24. Repeat the
+- **Modern purchase search (2026-10-22):** implemented locally with scoped text
+  search, status shortcuts, supplier/location/product/date filters, date presets,
+  sort, active chips/reset, and whole-result counts/totals. Full backend 308 tests,
+  frontend 30 tests, lint/types/build, and desktop light/dark browser checks pass.
+  Deployed after explicit authorization and validated EC2/Mac backups. The final
+  ARM64 image passed 308 tests; data hashes stayed unchanged. Phone/tablet layouts
+  checked at 375/768 px. See `docs/architecture/purchase-search.md` and
+  `docs/production-issues/2026-10-22-purchase-search-deployment.md`.
+
+- **First-priority purchase correction (clarified 2026-10-22):** allow correcting
+  the selected product, correcting unit price, and removing an erroneous line on
+  a saved invoice while its goods are unsold, including already-collected goods.
+  Implemented and verified locally on 2026-10-22, including collected stock with
+  no downstream dependency. See
+  `docs/production-issues/2026-10-22-purchase-corrections-local-fix.md` for behavior,
+  test evidence and pooled-stock limitations. The fix is deployed; see
+  `docs/production-issues/2026-10-22-purchase-corrections-deployment.md`. Other UI/API defects remain in the 2026-10-21 investigation.
+- **Required release gate:** Next.js is locked to 15.5.28. Repeat the
   production audit and ARM64 frontend build immediately before transferring the
   source and do not deploy if `scripts/check-ec2-frontend-security.sh` fails.
 - Initial EC2 backup policy is confirmed: database + uploaded-media pairs every
@@ -118,7 +133,201 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Change Log
 
-### 2026-09-07 (latest) — GST calculated from GST-inclusive prices, and cleared dates that stick
+### 2026-10-22 (latest) — repository publication
+
+- User authorized committing all pending project changes and pushing to `main`.
+  The update includes the deployed purchase corrections/search, regression tests,
+  Next.js patch, investigation records, and deployment/requirements documentation.
+- Verified remote `main` matches the starting local commit and checked pending
+  files for credentials. Production backups, private keys, environment files, and
+  generated local evidence remain excluded from Git.
+- Application validation remains the deployment's final **308 backend / 30
+  frontend passing tests**, lint/type checks, builds, and read-only production
+  checks. Publishing the repository requires no further production change.
+- Next: monitor the deployed features and continue the operational items below.
+
+### 2026-10-22 — modern purchase search deployed after backup
+
+- User explicitly authorized a backup followed by deployment. Created/validated
+  initial backup `20261022-153010` UTC before source transfer, preserving previous
+  source/images and environment hash. Copied initial and final backups to the
+  previously approved protected Mac folder; SHA256 and gzip/tar checks passed.
+- Native EC2/local ARM64 frontend builds and current security gate/audit passed
+  with the existing internal build-time PostCSS exception. Backend/worker retained
+  the prior tested Python runtime/dependency versions through a source-only layer.
+- Production-sized READ ONLY preflight exposed a 5.919-second fully-collected
+  request. Status-specific Exists predicates reduced it to 2.656 seconds while
+  matching all model statuses and whole-result totals. Optimized search regressions
+  21 passed; the exact final ARM64 image passed the full **308-test** suite in
+  349.12 seconds on a separate synthetic DB/network. Frontend remains 30 passed.
+- Visually verified actual local phone/tablet iframe widths 375/768 px in addition
+  to previous desktop/light/dark behavior. Ephemeral harness server was stopped.
+- Paused nginx/worker, created final backup **20261022-155019** UTC, recreated
+  backend/frontend, and verified unchanged application-table counts/hashes plus
+  zero ledger/balance drift before resuming worker/ingress. No invoice edits,
+  sample inserts, schema migrations, or balance repairs. Environment unchanged,
+  mode 600. Deployed at **15:51:01 UTC / 20:51:01 Pakistan time**.
+- All seven services, TLS/health/login/redirect, protected API, Django/migrations,
+  worker pong, critical source hashes, and the actual public purchase-page bundle
+  hash/feature markers passed. New read-only filters/totals match production model
+  calculations. No production Viewer account was created; synthetic tests cover it.
+- Final backups remain on EC2 and in `data/backups/ec2-2026-10-22/` on the Mac,
+  private folder 700/files 600 and gitignored. Updated user guide, SRS/specification,
+  architecture notes, this context, and the new production deployment record.
+- Recovery/logs/build recipe: `/home/ubuntu/stock-tracker-releases/search-20261022-1530/`.
+  Source-only local evidence: `data/exports/purchase-search-release-2026-10-22/`.
+  That release manifest records the exact deployed baseline. At deployment time,
+  Git HEAD predated the working-tree changes; repository publication is recorded
+  separately above.
+- Next: refresh Purchases in existing browser tabs and monitor ordinary search use;
+  continue backups and address the separately deferred invoice-edit defects.
+
+### 2026-10-22 — modern purchase search implemented locally
+
+- User requested a modern Purchases search bar with more useful options and
+  confirmed the proposed feature set. Implemented locally; production remains on
+  the verified purchase-correction release. No EC2 connection or production data
+  access/change was performed for this search work.
+- Added a larger search field and scope selector (all/invoice/product-SKU/supplier/
+  location/notes), status buttons, advanced supplier/location/product/date filters,
+  inclusive Dubai-date shortcuts, stable sorting, removable chips/reset, result
+  ranges/counts, debouncing, and loading/error/empty feedback. Old responses cannot
+  replace newer results; filter changes reset pagination/expanded detail.
+- Added read-only server filters and computed invoice-status matching, expanded
+  product search to specs/SKU/brand/model, excluded removed lines, deduplicated
+  matching invoices, and retained historical inactive filter choices. Totals use
+  all active lines of every matched invoice across pages. No schema/stock-write
+  or permission changes; deploy backend and frontend together.
+- Verification: full backend **308 passed**, including 21 search cases; frontend
+  **30 passed**; TypeScript, ESLint, Ruff, production build passed. Browser checks
+  covered combined search/scope/location/date, pending-only totals, rapid search
+  changes, empty/reset, sorting, and light/dark layouts. No desktop horizontal
+  overflow. Dedicated mobile viewport acceptance is still a review item.
+- Files: frontend `components/purchase-search.tsx`, `lib/purchase-search.ts`,
+  Purchases page and search tests; backend purchase filters/viewset and new search
+  tests; SRS/system specification/user guide/technical notes and this context.
+  JUnit and screenshots: gitignored `data/exports/purchase-search-2026-10-22/`.
+- Next: review the local preview on loopback port 18080, complete mobile acceptance,
+  and obtain explicit authorization before a backed-up production deployment.
+  The last release manifest is the deployed-source baseline, not current Git HEAD.
+
+### 2026-10-22 — purchase corrections deployed after backup and explicit authorization
+
+- User explicitly authorized EC2 connection, backup first, then production deployment.
+  Connected to the existing ARM64 host, validated backup pair `20261022-114012`
+  UTC, preserved prior source/images, and built the release in a staging folder.
+- Current audit required Next.js 15.5.28; updated the package/lock and minimum
+  version guard, resolving sharp/source-map-js findings too. Remaining production
+  audit findings are the existing internal PostCSS exception. Frontend 27 tests,
+  lint/types, and local/native EC2 ARM64 builds passed. The exact backend image
+  passed all **287 tests** against an isolated synthetic PostgreSQL container.
+- Paused ingress/worker and took final backup pair `20261022-115313` UTC, then
+  recreated backend/worker/frontend. Before reopening ingress, SELECT-only
+  table counts/hashes matched and stock ledger/balance drift was zero. No invoice
+  changes, test inserts, migrations, or balance repairs were performed. Production
+  environment remained unchanged at mode 600. Deployed at 11:53:47 UTC / 16:53:47 PKT.
+- All seven services, HTTPS health/login, HTTP redirect, protected API, worker pong,
+  Django/migrations, certificate/timers, and critical source hashes passed checks.
+  Read-only API checks covered existing Admin/Purchase/Sale users; no Viewer exists
+  in production, and none was created. Viewer policy is covered by synthetic tests.
+- The first pre-switch attempt safely stopped on a test-hostname error in the
+  verifier; previous service access was restored before source replacement. The
+  verifier was fixed/preflighted using the actual host before successful retry.
+- Backups remain private on EC2. After the user explicitly approved the local
+  destination, final pair `20261022-115313` was copied to
+  `data/backups/ec2-2026-10-22/` on the Mac. Both SHA256 checksums match EC2 and
+  gzip/tar integrity checks passed. Folder mode 700; files mode 600; gitignored.
+  The initial automatic export rejection was resolved by explicit authorization;
+  no workaround, backup restore, or business-data mutation was performed.
+- Files: frontend package/lock, security gate, EC2 runbook, current workflow/spec/
+  architecture/user docs, and deployment record. Recovery source/images and logs
+  are under `/home/ubuntu/stock-tracker-releases/corrections-20261022-1140/`.
+  Local source-only manifests/scripts/browser proof: gitignored
+  `data/exports/ec2-release-2026-10-22/`. No Git commit or push performed.
+- Next: use the deployed eligible-line corrections, monitor normal usage, maintain
+  regular off-instance backups, and address the deferred broader purchase-edit
+  defects separately. The approved Mac backup copy is complete.
+
+### 2026-10-22 — unsold purchase corrections implemented and verified locally
+
+- Followed the plan in `docs/architecture/unsold-purchase-corrections-plan.md`.
+  The user confirmed dependent lines should be blocked with a clear reason while
+  received stock that has not moved further can be corrected. Production remains
+  untouched and requires explicit permission before deployment.
+- Purchase product/price corrections and removal now reverse/replay current net
+  stock contributions while retaining ledger and collection history. Collection
+  undo, later collection/refunds, GST, and valuation follow the corrected basis.
+  No schema migration. Currency/exchange/GST remain fixed after collection; keep
+  at least one line. Pooled product/location dependencies are conservatively blocked.
+- Added API eligibility/reasons, fresh active-line responses, duplicate/empty line
+  validation, and editor controls/reasons with historical selected options retained.
+  Stock domain operations now serialize with a PostgreSQL transaction advisory
+  lock before validation/costing to prevent concurrent sale/dispatch races.
+- Verification: full backend suite 285 passed; final focused suite 60 passed after
+  a reversal-link refinement and two added report cases; frontend 27 passed;
+  TypeScript/ESLint/build and Ruff passed; migration dry run found no changes.
+  Browser checks passed for partial/full collection corrections, received-line
+  removal, and shipment blocking using only synthetic local invoices.
+- Main source changes: `apps/purchases/{corrections,services,serializers,views}.py`,
+  inventory posting/adjustments and sale/shipment transaction entry points,
+  frontend purchases editor and helpers. Tests: new backend correction suite,
+  updated purchase expectation, new frontend purchase-edit tests. Updated SRS,
+  system specification, user guide, business flow, and technical architecture.
+- Evidence/report: `docs/production-issues/2026-10-22-purchase-corrections-local-fix.md`;
+  gitignored JUnit/screenshots and local Compose/seed sources under
+  `data/exports/unsold-purchase-audit-2026-10-22/`. Local preview is loopback port
+  18080 with a separate tmpfs PostgreSQL container. No production connection,
+  code/data change, restart, migration, transfer, or deployment in implementation.
+- Next: review locally, then await explicit production authorization. Broader
+  PATCH/new-line collection defects remain deferred. Global stock serialization
+  is a deliberate initial throughput tradeoff, documented for future refinement.
+
+### 2026-10-22 — unsold purchase correction scope clarified and reproduced
+
+- The user clarified the first fix: changing the selected product, changing unit
+  price, and removing an erroneous invoice line before its goods are sold. This
+  includes collected goods and is a requested change to the current restriction.
+- Ran 27 focused diagnostic cases in a fresh local PostgreSQL container with
+  synthetic two-line invoices. Core cases explicitly had zero sales, shipments,
+  refunds, and adjustments. Confirmed all three corrections succeed while pending
+  but fail after partial/full collection, whether collected at entry or later;
+  quantity increases still succeed.
+- Local-only guard-bypass experiments demonstrated why removing the restriction
+  alone is insufficient: invoice value could change without revaluing physical
+  stock, or product selection could change while received stock stays under the
+  original product. Application source was not modified.
+- Documented collection undo/reversal dependencies, unsold shipment handling, and
+  the lack of direct sale-to-purchase-line allocation in the pooled stock model.
+- Files updated: this context, `docs/requirements/SYSTEM_SPEC.md` purchase
+  correction clarification, and the new focused investigation. Synthetic tests
+  and passing JUnit evidence are in gitignored
+  `data/exports/unsold-purchase-audit-2026-10-22/`.
+- No production connection, data change, application fix, or deployment was
+  performed in this follow-up. Next: implement the three prioritized corrections
+  locally with stock/value/GST/audit consistency and dependency checks.
+
+### 2026-10-21 — read-only production review and isolated purchase-edit investigation
+
+- Confirmed EC2 is live and the deployed purchase services, serializers, views,
+  and frontend page exactly match local source hashes. Production SQL was run in
+  an explicitly read-only transaction; no production update request, migration,
+  ledger rebuild, restart, repair, or data copy was performed.
+- Reproduced purchase editing with synthetic data in a separate local PostgreSQL
+  container and localhost UI/API stack. The 227 existing backend tests passed;
+  86 additional diagnostic cases passed while asserting the observed behavior.
+- Confirmed intentional location/pricing locks, quantity floors, role restrictions,
+  successful header/line-note edits, and rollback of invalid updates. Found the
+  refund-only UI lock mismatch, inactive master-record save blockers, ignored
+  collection on added lines, two PATCH 500 cases, missing line-notes UI, and
+  empty-invoice/removed-line response inconsistencies.
+- Added `docs/production-issues/2026-10-21-purchase-invoice-editing.md`. Synthetic
+  fixtures, diagnostic source, local runtime configuration, screenshots, and JUnit
+  evidence are retained in gitignored `data/exports/purchase-edit-audit-2026-10-21/`.
+- No application fix or deployment was performed. Next: address the confirmed edit
+  defects locally; separately decide whether an audited historical price-correction
+  workflow is required. Do not simply remove the financial history locks.
+
+### 2026-09-07 — GST calculated from GST-inclusive prices, and cleared dates that stick
 
 - **GST was added on top of the price instead of taken out of it.**
   `freeze_line_values` computed `gross x rate/100`, treating the unit price as
@@ -610,26 +819,25 @@ If a change affects requirements, workflows, permissions, entities, database des
 
 ## Next Recommended Step
 
-**Current plan (2026-08-25): execute the approved M8 deployment manually by
-following `deployment/AWS_EC2_GUIDE.md`.** Windows manual testing passed, but none
-of its users or data transfer. AWS production starts fresh.
+**Current state (2026-10-22): unsold purchase corrections and the modern Purchases
+search are deployed on AWS after explicit authorization, validated backups, and
+read-only verification of unchanged business data.**
 
-**Phase M8 repository implementation: complete; live AWS execution pending.**
+- Refresh existing Purchases tabs to load the new search controls. Monitor normal
+  search/filter usage; see `docs/production-issues/2026-10-22-purchase-search-deployment.md`.
+  Use the latest search-release manifest as the deployed baseline for future updates.
 
-- [x] Dedicated ARM64 EC2 Compose stack with all seven services and log rotation.
-- [x] Django secure production settings and single-origin nginx proxy.
-- [x] HTTP certificate bootstrap followed by trusted Elastic-IP HTTPS.
-- [x] Four-times-daily automated renewal for six-day IP certificates.
-- [x] Public SSH hardening: key-only, no root/password, Fail2ban, verbose logs.
-- [x] Guarded fresh-data check, settings-only seed, and Admin bootstrap.
-- [x] EBS-backed persistence plus matched 12-hour database/media backup pairs.
-- [x] Manual backup/restore and infrastructure verification scripts.
-- [x] Detailed AWS Console and Mac deployment/recovery runbook.
-- [ ] Client creates the `ap-south-1` `t4g.medium`, 50 GB encrypted gp3 volume,
-  security group, and Elastic IP, then runs the documented setup.
-- [ ] Complete live HTTPS, reboot, restore, ledger, reports, attachments, and
-  four-role permission acceptance tests.
-- [ ] Copy backup pairs to the Mac regularly.
+- Monitor eligible product/price/removal corrections during normal use. Dependent
+  lines remain blocked with reasons; currency/fx/GST remain fixed after collection.
+- Approved Mac copies include the final search-release backup `20261022-155019`
+  and earlier correction backup `20261022-115313`, verified under
+  `data/backups/ec2-2026-10-22/`; originals remain on EC2. Continue regular
+  off-instance copies until automated private S3 backup is implemented.
+- Retain release recovery artifacts. An old backend cannot safely undo corrected
+  collection contributions; review events before any future application rollback.
+- Address the remaining 2026-10-21 UI/API edit defects after the prioritized scope.
+- Continue the runbook's release, backup-copy, and role-sensitive verification
+  procedures. This investigation did not repeat destructive restore/reboot tests.
 
 **Next durability phase:** automate private encrypted/versioned S3 backup with a
 retention lifecycle after the initial EC2 deployment stabilizes.

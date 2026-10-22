@@ -58,6 +58,22 @@ export function toOptions<T extends LabelledRow>(
   return rows.map((row) => ({ value: String(row.id), label: label(row) }));
 }
 
+/** Keep this record's historical selections visible when active lists omit them. */
+export function withSelectedOptions(
+  options: ChoiceOption[],
+  selected: ChoiceOption[],
+): ChoiceOption[] {
+  const result = [...options];
+  const values = new Set(options.map((option) => option.value));
+  for (const option of selected) {
+    if (!values.has(option.value)) {
+      result.push(option);
+      values.add(option.value);
+    }
+  }
+  return result;
+}
+
 function score(haystack: string, needle: string): number {
   if (haystack === needle) return EXACT;
   if (haystack.startsWith(needle)) return PREFIX;
